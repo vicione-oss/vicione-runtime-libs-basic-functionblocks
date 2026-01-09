@@ -1,0 +1,226 @@
+include:
+  - project: 'acx/tooling/templates'
+    file: '/CI-Templates/v2/dotnet.yml'
+  - project: 'acx/tooling/ci-templates'
+    file: '/project/v1/dotnet.yml'
+
+default:
+  image: mcr.microsoft.com/dotnet/sdk:9.0
+
+Build:
+  extends: .dotnet-build
+
+xUnit:
+  extends: .dotnet-test-xunit
+
+Prerelease Analysis Raw:
+  extends: .dotnet-deploy-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Analysis/ViciOne.Analysis.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Analysis'
+    METADATA_FILE: 'src/ViciOne.Analysis/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Prerelease Constant Raw:
+  extends: .dotnet-deploy-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Constant/ViciOne.Constant.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Constant'
+    METADATA_FILE: 'src/ViciOne.Constant/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Prerelease Converter Raw:
+  extends: .dotnet-deploy-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Converter/ViciOne.Converter.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Converter'
+    METADATA_FILE: 'src/ViciOne.Converter/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Prerelease FlowControl Raw:
+  extends: .dotnet-deploy-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.FlowControl/ViciOne.FlowControl.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.FlowControl'
+    METADATA_FILE: 'src/ViciOne.FlowControl/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Prerelease Logic Raw:
+  extends: .dotnet-deploy-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Logic/ViciOne.Logic.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Logic'
+    METADATA_FILE: 'src/ViciOne.Logic/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Prerelease Math Raw:
+  extends: .dotnet-deploy-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Math/ViciOne.Math.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Math'
+    METADATA_FILE: 'src/ViciOne.Math/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Prerelease Time Raw:
+  extends: .dotnet-deploy-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Time/ViciOne.Time.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Time'
+    METADATA_FILE: 'src/ViciOne.Time/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Release Analysis Raw:
+  extends: .dotnet-release-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Analysis/ViciOne.Analysis.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Analysis'
+    METADATA_FILE: 'src/ViciOne.Analysis/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+
+Release Constant Raw:
+  extends: .dotnet-release-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Constant/ViciOne.Constant.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Constant'
+    METADATA_FILE: 'src/ViciOne.Constant/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Release Converter Raw:
+  extends: .dotnet-release-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Converter/ViciOne.Converter.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Converter'
+    METADATA_FILE: 'src/ViciOne.Converter/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Release FlowControl Raw:
+  extends: .dotnet-release-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.FlowControl/ViciOne.FlowControl.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.FlowControl'
+    METADATA_FILE: 'src/ViciOne.FlowControl/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Release Logic Raw:
+  extends: .dotnet-release-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Logic/ViciOne.Logic.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Logic'
+    METADATA_FILE: 'src/ViciOne.Logic/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Release Math Raw:
+  extends: .dotnet-release-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Math/ViciOne.Math.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Math'
+    METADATA_FILE: 'src/ViciOne.Math/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+Release Time Raw:
+  extends: .dotnet-release-raw-rids
+  variables:
+    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
+    USER: ${Raw_User_RW_JFrog}
+    PASSWORD: ${Raw_PW_RW_JFrog}
+    PROJECT: 'src/ViciOne.Time/ViciOne.Time.csproj'
+    DST_DIRECTORY: 'fbs/ViciOne.Time'
+    METADATA_FILE: 'src/ViciOne.Time/metadata.json'
+    METADATA_VERSION_FILE: 'VERSION'
+    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
+    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
+  after_script:
+    - !reference [.push-metadata]
+
+### Public Release ###
+Public Release Raw:
+  extends: .dotnet-release-public
