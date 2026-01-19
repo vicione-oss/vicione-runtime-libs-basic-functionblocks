@@ -25,9 +25,9 @@
         <RuntimeIdentifiers Condition="$(MSBuildProjectDirectory.Contains('src'))">linux-x64;linux-arm64;win-x64</RuntimeIdentifiers>
         <Description>-</Description>
         <Product>ViciOne</Product>
-        <Company>ACX</Company>
+        <Company>ifm software gmbh</Company>
         <Year>$([System.DateTime]::Now.Year)</Year>
-        <Copyright>Copyright © ACX GmbH $(Year)</Copyright>
+        <Copyright>Copyright © $(Company) $(Year)</Copyright>
         <NeutralLanguage>en-US</NeutralLanguage>
         <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
         <!-- Codequalität erhöhen -->
@@ -42,28 +42,11 @@
         <NuGetAuditMode>all</NuGetAuditMode>
     </PropertyGroup>
 
-    <!-- Für Repos die Projekte enthalten die als NuGet Paket veröffentlicht werden -->
-    <PropertyGroup>
-        <!--
-        Für die Kompatibilität mit .net core müssen folgende Variablennamen verwendet werden:
-        https://docs.microsoft.com/de-de/nuget/reference/msbuild-targets
-        -->
-        <!--
-        <PackageProjectUrl>https://git.nsc-gmbh.de/group/repo.git</PackageProjectUrl>
-        <Authors>z.B. $(Company), Max Mustermann</Authors>
-        -->
-    </PropertyGroup>
-
     <!-- Geschwindigkeitsoptimierung für die CI-Pipelines -->
     <PropertyGroup Condition="'$(CI)' != ''">
         <!--
         <RunAnalyzers>false</RunAnalyzers>
         -->
-    </PropertyGroup>
-
-    <!-- PDB Dateien beim Veröffentlichen weglassen -->
-    <PropertyGroup Condition="'$(Configuration)'=='Release'">
-        <DebugType>None</DebugType>
     </PropertyGroup>
 
     <!-- Testprojekte sollen beim Veröffentlichen ignoriert und nicht als NuGet-Paket verpackt werden -->
