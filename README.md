@@ -3,24 +3,29 @@
 This repository contains following FunctionBlocks:
 
 ## ViciOne.Analysis
+
 * IntervalStatistic
 
 ## ViciOne.Constant
+
 * AlternatingValues
 * Boolean
 * Double
 * String
 
 ## ViciOne.Converter
+
 * BooleanToDouble
 * DoubleToBoolean
 * LongToDouble
 
 ## ViciOne.FlowControl
+
 * TwoWaySelector
 * ValueRepeater
 
 ## ViciOne.Logic
+
 * AND
 * NAND
 * NOR
@@ -30,6 +35,7 @@ This repository contains following FunctionBlocks:
 * XOR
 
 ## ViciOne.Math
+
 * AbsDiff
 * Add
 * Ceiling
@@ -55,6 +61,8 @@ This repository contains following FunctionBlocks:
 * Truncate
 
 ## ViciOne.Time
+
+* CurrentDateTime
 * Scheduler
 * SecondsSince
 * TimeOfDay12h
