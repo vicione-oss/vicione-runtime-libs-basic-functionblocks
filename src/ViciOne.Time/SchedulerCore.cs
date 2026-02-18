@@ -29,13 +29,11 @@ internal sealed class SchedulerCore()
             var timeOfDayNow = new TimeSpan(0, now.TimeOfDay.Hours, now.TimeOfDay.Minutes, 0);
 
             entry = times.FirstOrDefault(x => x.TimeOfDay == timeOfDayNow && x.LastExecutedDate.Date < now.Date);
-            if (entry is null)
-                return false;
         }
 
-        entry.LastExecutedDate = now.Date;
+        entry?.LastExecutedDate = now.Date;
 
-        return true;
+        return entry is not null;
     }
 
     internal static TimeEntry CreateTimeEntry(TimeSpan timeOfDay)
