@@ -43,13 +43,12 @@ public class CurrentDateTimeTests
         {
             ProcessCycle();
             var first = GetOutputValue<DateTime>(nameof(CurrentDateTime.ProcessDataOutputs.Now));
-
             // ensure a time delta
             System.Threading.Thread.Sleep(20);
 
             ProcessCycle();
-            var second = GetOutputValue<DateTime>(nameof(CurrentDateTime.ProcessDataOutputs.Now));
 
+            var second = GetOutputValue<DateTime>(nameof(CurrentDateTime.ProcessDataOutputs.Now));
             second.Should().BeAfter(first);
         }
 
@@ -58,15 +57,13 @@ public class CurrentDateTimeTests
         {
             ProcessCycle();
             var before = GetOutputValue<DateTime>(nameof(CurrentDateTime.ProcessDataOutputs.Now));
-
             ChangeEnabled(false);
-
             // ensure a time delta
             System.Threading.Thread.Sleep(20);
 
             ProcessCycle();
-            var after = GetOutputValue<DateTime>(nameof(CurrentDateTime.ProcessDataOutputs.Now));
 
+            var after = GetOutputValue<DateTime>(nameof(CurrentDateTime.ProcessDataOutputs.Now));
             after.Should().Be(before);
         }
     }

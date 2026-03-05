@@ -22,10 +22,7 @@ public partial class TimeOfDay24h
             : DateTime.Now;
 
     protected override void OnSettingChanged(IRuntimeSetting setting)
-    {
-        base.OnSettingChanged(setting);
-        CalculateAndPublish();
-    }
+        => CalculateAndPublish();
 
     protected override void ProcessCycle(IFunctionBlockCycleInfo cycleInfo)
         => CalculateAndPublish();

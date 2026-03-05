@@ -9,7 +9,6 @@ public partial class Mod
         if (FunctionBlockEnabled is false)
             return;
 
-        // TODO: Ist es richtig, dass der Block trotzdem ein neues Ergebnis erzeugt (nämlich 0.0) wenn als Divisor 0.0 angegeben wird?
         double remainder = 0.0;
         if (ProcessDataInputs.Divisor.Value != 0.0)
             remainder = ProcessDataInputs.Dividend.Value % ProcessDataInputs.Divisor.Value;

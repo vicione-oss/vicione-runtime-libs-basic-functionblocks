@@ -7,69 +7,63 @@ public class SchedulerTests
 {
     public class ProcessCycle : RuntimeFunctionBlockTests<Scheduler>
     {
-        protected override bool AllowErrorsInProcessCycle => true;
-
         [Fact]
-        public void OutputIsTrueIfCurrentTimeIsScheduled()
+        public void SetsAndResetsTriggerOutputIfCurrentTimeIsScheduled()
         {
             var now = DateTime.Now;
             ChangeSettingValue(nameof(Scheduler.Settings.Times), $"{(int)now.DayOfWeek}#{now.Hour:D2}:{now.Minute:D2}");
             StartEngine();
-            // TODO: Currently we need a ProcessCycle to ensure the settings are applied. With Core v1.0.0 we need are able to apply settings immediately, so we can remove this ProcessCycle.
-            ProcessCycle();
             var scheduler = GetRuntimeFunctionBlock();
             scheduler.DeactivateTimer();
             scheduler.CheckScheduler(now);
 
             ProcessCycle();
-
-            GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger)).Should().BeTrue();
-
+            var outputAfterFirstCycle = GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger));
             ProcessCycle();
+            var outputAfterSecondCycle = GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger));
 
-            GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger)).Should().BeFalse();
+            outputAfterFirstCycle.Should().BeTrue();
+            outputAfterSecondCycle.Should().BeFalse();
         }
 
         [Fact]
-        public void OutputsFalseIfCurrentTimeIsNotScheduled()
+        public void DoesNotSetTriggerOutputIfCurrentTimeIsNotScheduled()
         {
             var now = DateTime.Now;
+            var tomorrow = now.AddDays(1);
+            ChangeSettingValue(nameof(Scheduler.Settings.Times), $"{(int)tomorrow.DayOfWeek}#{tomorrow.Hour:D2}:{tomorrow.Minute:D2}");
             StartEngine();
-            // TODO: Currently we need a ProcessCycle to ensure the settings are applied. With Core v1.0.0 we need are able to apply settings immediately, so we can remove this ProcessCycle.
-            ProcessCycle();
             var scheduler = GetRuntimeFunctionBlock();
             scheduler.DeactivateTimer();
             scheduler.CheckScheduler(now);
 
             ProcessCycle();
-
-            GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger)).Should().BeFalse();
-
+            var outputAfterFirstCycle = GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger));
             ProcessCycle();
+            var outputAfterSecondCycle = GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger));
 
-            GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger)).Should().BeFalse();
+            outputAfterFirstCycle.Should().BeFalse();
+            outputAfterSecondCycle.Should().BeFalse();
         }
 
         [Fact]
-        public void DoesNotProcessCycleIfDisabled()
+        public void DoesNotSetTriggerOutputIfDisabled()
         {
             var now = DateTime.Now;
             ChangeSettingValue(nameof(Scheduler.Settings.Times), $"{(int)now.DayOfWeek}#{now.Hour:D2}:{now.Minute:D2}");
             ChangeEnabled(false);
             StartEngine();
-            // TODO: Currently we need a ProcessCycle to ensure the settings are applied. With Core v1.0.0 we need are able to apply settings immediately, so we can remove this ProcessCycle.
-            ProcessCycle();
             var scheduler = GetRuntimeFunctionBlock();
             scheduler.DeactivateTimer();
             scheduler.CheckScheduler(now);
 
             ProcessCycle();
-
-            GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger)).Should().BeFalse();
-
+            var outputAfterFirstCycle = GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger));
             ProcessCycle();
+            var outputAfterSecondCycle = GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger));
 
-            GetOutputValue<bool>(nameof(Scheduler.ProcessDataOutputs.Trigger)).Should().BeFalse();
+            outputAfterFirstCycle.Should().BeFalse();
+            outputAfterSecondCycle.Should().BeFalse();
         }
     }
 }

@@ -9,10 +9,9 @@ public class DoubleTests
         [Fact]
         public void DoesNothingIfBlockIsNotEnabled()
         {
-            ChangeEnabled(false);
-            ProcessCycle();
             var outputValueBefore = GetOutputValue<double>(nameof(Double.ProcessDataOutputs.Value));
-            ChangeSettingValue(nameof(Double.Settings.DefaultValue), 13.5);
+            ChangeEnabled(false);
+            ChangeSettingValue(nameof(Double.Settings.DefaultValue), outputValueBefore + 13.5);
 
             ProcessCycle();
 
@@ -21,16 +20,30 @@ public class DoubleTests
         }
 
         [Theory]
-        [InlineData(12.4, 12.4)]
-        [InlineData(-10, -10)]
-        public void SetsOutputIfSettingChanged(double setting, double expectedValue)
+        [InlineData(12.4)]
+        [InlineData(-10)]
+        public void PublishesSettingValueOnFirstRun(double settingValue)
         {
-            ChangeSettingValue(nameof(Double.Settings.DefaultValue), setting);
+            ChangeSettingValue(nameof(Double.Settings.DefaultValue), settingValue);
 
             ProcessCycle();
 
             var outputValue = GetOutputValue<double>(nameof(Double.ProcessDataOutputs.Value));
-            outputValue.Should().Be(expectedValue);
+            outputValue.Should().Be(settingValue);
+        }
+
+        [Theory]
+        [InlineData(12.4)]
+        [InlineData(-10)]
+        public void SetsOutputIfSettingChangedAfterFirstRun(double settingValue)
+        {
+            ProcessCycle();
+            ChangeSettingValue(nameof(Double.Settings.DefaultValue), settingValue);
+
+            ProcessCycle();
+
+            var outputValue = GetOutputValue<double>(nameof(Double.ProcessDataOutputs.Value));
+            outputValue.Should().Be(settingValue);
         }
     }
 }

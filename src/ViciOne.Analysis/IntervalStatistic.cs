@@ -49,7 +49,13 @@ public partial class IntervalStatistic
 
     protected override void ProcessCycle(IFunctionBlockCycleInfo cycleInfo)
     {
-        if (FunctionBlockEnabled && ProcessDataInputs.Value.Changed && ProcessDataInputs.Value.Value != ProcessDataInputs.Value.Connector.Design.DefaultValue)
+        if (FunctionBlockEnabled == false)
+            return;
+
+        if (cycleInfo.IsFirstCycle && ProcessDataInputs.Value.Value == ProcessDataInputs.Value.Connector.Design.DefaultValue)
+            return;
+
+        if (ProcessDataInputs.Value.Changed || cycleInfo.IsFirstCycle)
         {
             if (_dataReceived == false)
             {

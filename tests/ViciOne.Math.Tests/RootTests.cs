@@ -25,6 +25,7 @@ public class RootTests
         [Fact]
         public void CalculatesCorrectResultIfOnlyInputChanged()
         {
+            ProcessCycle();
             var radicand = 16.0;
             ChangeInputValue(nameof(Root.ProcessDataInputs.Radicand), radicand);
             var index = GetSettingValue<double>(nameof(Root.Settings.Index));
@@ -39,6 +40,7 @@ public class RootTests
         [Fact]
         public void CalculatesCorrectResultIfOnlySettingChanged()
         {
+            ProcessCycle();
             var index = 3.0;
             ChangeSettingValue(nameof(Root.Settings.Index), index);
             var radicand = GetInputValue<double>(nameof(Root.ProcessDataInputs.Radicand));

@@ -9,10 +9,9 @@ public class StringTests
         [Fact]
         public void DoesNothingIfBlockIsNotEnabled()
         {
-            ChangeEnabled(false);
-            ProcessCycle();
             var outputValueBefore = GetOutputValue<string>(nameof(String.ProcessDataOutputs.Value));
-            ChangeSettingValue(nameof(String.Settings.DefaultValue), "Sample Text");
+            ChangeEnabled(false);
+            ChangeSettingValue(nameof(String.Settings.DefaultValue), outputValueBefore + "Sample Text");
 
             ProcessCycle();
 
@@ -21,16 +20,30 @@ public class StringTests
         }
 
         [Theory]
-        [InlineData("Sample Text 2", "Sample Text 2")]
-        [InlineData("Lorem ipsum dolor sit", "Lorem ipsum dolor sit")]
-        public void SetsOutputIfSettingChanged(string setting, string expectedValue)
+        [InlineData("Sample Text 2")]
+        [InlineData("Lorem ipsum dolor sit")]
+        public void PublishesSettingValueOnFirstRun(string settingValue)
         {
-            ChangeSettingValue(nameof(String.Settings.DefaultValue), setting);
+            ChangeSettingValue(nameof(String.Settings.DefaultValue), settingValue);
 
             ProcessCycle();
 
             var outputValue = GetOutputValue<string>(nameof(String.ProcessDataOutputs.Value));
-            outputValue.Should().Be(expectedValue);
+            outputValue.Should().Be(settingValue);
+        }
+
+        [Theory]
+        [InlineData("Sample Text 2")]
+        [InlineData("Lorem ipsum dolor sit")]
+        public void SetsOutputIfSettingChangedAfterFirstRun(string settingValue)
+        {
+            ProcessCycle();
+            ChangeSettingValue(nameof(String.Settings.DefaultValue), settingValue);
+
+            ProcessCycle();
+
+            var outputValue = GetOutputValue<string>(nameof(String.ProcessDataOutputs.Value));
+            outputValue.Should().Be(settingValue);
         }
     }
 }

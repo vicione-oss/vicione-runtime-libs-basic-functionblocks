@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using AwesomeAssertions;
 using ViciOne.Core.Dataflow.DataModel;
 using ViciOne.Core.Runtime.Execution;
@@ -22,7 +21,6 @@ public class RandomTests
 
             var outputDoubleAfter = GetOutputValue<double>(nameof(Random.ProcessDataOutputs.NextDouble));
             var outputLongAfter = GetOutputValue<long>(nameof(Random.ProcessDataOutputs.NextLong));
-
             outputDoubleAfter.Should().NotBe(outputDoubleBefore);
             outputLongAfter.Should().NotBe(outputLongBefore);
         }
@@ -48,7 +46,7 @@ public class RandomTests
         }
 
         [Fact]
-        public void DoesNotProcessInputIfInputIsFalse()
+        public void DoesNotCalculateNewResultsIfInputIsFalse()
         {
             var outputDoubleBefore = GetOutputValue<double>(nameof(Random.ProcessDataOutputs.NextDouble));
             var outputLongBefore = GetOutputValue<long>(nameof(Random.ProcessDataOutputs.NextLong));
@@ -63,7 +61,7 @@ public class RandomTests
         }
 
         [Fact]
-        public void DoesNotProcessInputIfBlockIsNotEnabled()
+        public void DoesNotCalculateNewResultsIfBlockIsNotEnabled()
         {
             var outputDoubleBefore = GetOutputValue<double>(nameof(Random.ProcessDataOutputs.NextDouble));
             var outputLongBefore = GetOutputValue<long>(nameof(Random.ProcessDataOutputs.NextLong));
@@ -96,11 +94,12 @@ public class RandomTests
         }
     }
 
-    public class ProcessCycle_Cyclic() : RuntimeFunctionBlockTests<Random>(GenerateDataflow())
+    public class ProcessCycle_Cyclic : RuntimeFunctionBlockTests<Random>
     {
         [Fact]
         public void CalculatesNewResultsWithoutInputChange()
         {
+            SetRunMode(ViciOne.Core.Contracts.DataModel.RunMode.Cyclic);
             StartEngine();
             var cyclesToRun = 5;
             var outputValuesDouble = new List<double>();
@@ -125,13 +124,7 @@ public class RandomTests
         private static Dataflow ExtractDataflow(DataflowInfo dataflowInfo)
             => dataflowInfo.Dataflow as Dataflow ?? throw new System.InvalidOperationException("These test cases can only be executed if Core data model is used.");
 
-        private static (DataflowInfo, IEnumerable<Assembly>) GenerateDataflow()
-        {
-            var assemblies = CreateDefaultAssemblies();
-            var info = GenerateDefaultDataflow(assemblies);
-            var dataflow = ExtractDataflow(info);
-            dataflow.RootContainer.FunctionBlocks.First().RunMode = ViciOne.Core.Contracts.DataModel.RunMode.Cyclic;
-            return (info, assemblies.AllAssemblies);
-        }
+        private void SetRunMode(ViciOne.Core.Contracts.DataModel.RunMode runMode)
+            => ExtractDataflow(DataflowInfo).RootContainer.FunctionBlocks.First().RunMode = runMode;
     }
 }
