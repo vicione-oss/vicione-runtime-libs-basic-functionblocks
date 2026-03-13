@@ -13,44 +13,55 @@ using ViciOne.Core.Runtime;
 using ViciOne.Core.Runtime.Execution;
 using ViciOne.Engine;
 
-public abstract class RuntimeFunctionBlockTests<TBlock> : IDisposable where TBlock : RuntimeFunctionBlock<TBlock>, new()
+public abstract class RuntimeFunctionBlockTests<TBlock>(DataflowInfo dataflowInfo, IEnumerable<Assembly> assemblies) : IDisposable where TBlock : RuntimeFunctionBlock<TBlock>, new()
 {
     private bool _disposed;
 
     protected virtual bool AllowErrorsInProcessCycle { get; set; }
-    protected FunctionBlockExecutor BlockExecutor { get; }
-    protected ITestLoggerFactory LoggerFactory { get; }
+    protected IEnumerable<Assembly> Assemblies { get; set; } = assemblies;
+    protected FunctionBlockExecutor? BlockExecutor { get; private set; }
+    protected ITestLoggerFactory LoggerFactory { get; } = TestLoggerFactory.Create();
+    protected DataflowInfo DataflowInfo { get; set; } = dataflowInfo;
 
     protected RuntimeFunctionBlockTests() : this(GenerateDefaultDataflow()) { }
 
     protected RuntimeFunctionBlockTests((DataflowInfo DataflowInfo, IEnumerable<Assembly> Assemblies) pair) : this(pair.DataflowInfo, pair.Assemblies) { }
 
-    protected RuntimeFunctionBlockTests(DataflowInfo dataflowInfo, IEnumerable<Assembly> assemblies)
-    {
-        LoggerFactory = TestLoggerFactory.Create();
-        BlockExecutor = new FunctionBlockExecutor(dataflowInfo, assemblies, LoggerFactory);
-        BlockExecutor.StartEngine();
-
-        if (BlockExecutor.EngineState != EngineState.Starting)
-            throw new InvalidStateException($"Invalid engine state found. Expected '{EngineState.Starting}' but found '{BlockExecutor.EngineState}'");
-
-        BlockExecutor.ProcessCycle();
-    }
-
     protected static RelevantAssemblies CreateDefaultAssemblies()
         => AssemblyLoader.CreateRelevantAssemblies(typeof(TBlock).Assembly.Location);
 
     protected virtual void ChangeEnabled(bool enabled)
-        => BlockExecutor.ChangeInputValue(GetInput(SystemConnectorNames.FunctionBlockEnabledName), enabled);
+        => ChangeInputValue(SystemConnectorNames.FunctionBlockEnabledName, enabled);
 
     protected virtual void ChangeInputValue(string connectorName, object newValue)
-        => BlockExecutor.ChangeInputValue(GetInput(connectorName), newValue);
+    {
+        var input = GetInput(connectorName);
+        if (BlockExecutor is not null)
+            BlockExecutor.ChangeInputValue(input, newValue);
+        else
+            input.Value = newValue;
+    }
 
     protected virtual void ChangePersistentVariableValue(string variableName, object newValue)
-        => BlockExecutor.ChangePersistentVariableValue(GetPersistentVariable(variableName), newValue);
+    {
+        var variable = GetPersistentVariable(variableName);
+        if (BlockExecutor is not null)
+            BlockExecutor.ChangePersistentVariableValue(variable, newValue);
+        else
+            variable.Value = newValue;
+    }
 
     protected virtual void ChangeSettingValue(string settingName, object newValue)
-        => BlockExecutor.ChangeSettingValue(GetSetting(settingName), newValue);
+    {
+        var setting = GetSetting(settingName);
+        if (BlockExecutor is not null)
+            BlockExecutor.ChangeSettingValue(setting, newValue);
+        else
+        {
+            setting.Value = newValue;
+            setting.Input.Value = newValue;
+        }
+    }
 
     public void Dispose()
     {
@@ -67,7 +78,7 @@ public abstract class RuntimeFunctionBlockTests<TBlock> : IDisposable where TBlo
         if (disposing is false)
             return;
 
-        BlockExecutor.Dispose();
+        BlockExecutor?.Dispose();
         LoggerFactory.Dispose();
     }
 
@@ -87,48 +98,95 @@ public abstract class RuntimeFunctionBlockTests<TBlock> : IDisposable where TBlo
     }
 
     protected virtual IConnector GetInput(string connectorName)
-        => BlockExecutor.GetInputs().First(x => string.Equals(x.Design.Name, connectorName, StringComparison.Ordinal));
+        => DataflowInfo.Inputs.First(x => string.Equals(x.Connector.Design.Name, connectorName, StringComparison.Ordinal)).Connector;
 
     protected virtual DateTime GetInputChangedTime(string connectorName)
-        => BlockExecutor.GetInputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Time;
+    {
+        ThrowIfEngineNotStarted();
+        return BlockExecutor!.GetInputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Time;
+    }
 
     protected virtual Validity GetInputValidity(string connectorName)
-        => BlockExecutor.GetInputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Validity;
+    {
+        ThrowIfEngineNotStarted();
+        return BlockExecutor!.GetInputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Validity;
+    }
 
     protected virtual TValue GetInputValue<TValue>(string connectorName)
-        => (TValue)BlockExecutor.GetInputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Value!;
+        => BlockExecutor is not null
+            ? (TValue)BlockExecutor.GetInputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Value!
+            : (TValue)GetInput(connectorName).Value!;
+
+    protected virtual IConnector GetOutput(string connectorName)
+        => DataflowInfo.Outputs.First(x => string.Equals(x.Connector.Design.Name, connectorName, StringComparison.Ordinal)).Connector;
+
+    protected virtual DateTime GetOutputChangedTime(string connectorName)
+    {
+        ThrowIfEngineNotStarted();
+        return BlockExecutor!.GetOutputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Time;
+    }
 
     protected virtual Validity GetOutputValidity(string connectorName)
-        => BlockExecutor.GetOutputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Validity;
+    {
+        ThrowIfEngineNotStarted();
+        return BlockExecutor!.GetOutputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Validity;
+    }
 
     protected virtual TValue GetOutputValue<TValue>(string connectorName)
-        => (TValue)BlockExecutor.GetOutputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Value!;
+        => BlockExecutor is not null
+            ? (TValue)BlockExecutor.GetOutputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, StringComparison.Ordinal)).Value.Value!
+            : (TValue)GetOutput(connectorName).Value!;
 
     protected virtual IPersistentVariable GetPersistentVariable(string variableName)
-        => BlockExecutor.GetPersistentVariables().First(x => string.Equals(x.Design.Name, variableName, StringComparison.Ordinal));
+        => DataflowInfo.PersistentVariables.First(x => string.Equals(x.Design.Name, variableName, StringComparison.Ordinal));
 
     protected virtual TValue GetPersistentVariableValue<TValue>(string variableName)
-        => (TValue)BlockExecutor.GetPersistentVariableValues().First(x => string.Equals(x.Key.Design.Name, variableName, StringComparison.Ordinal)).Value.Value!;
+        => BlockExecutor is not null
+            ? (TValue)BlockExecutor.GetPersistentVariableValues().First(x => string.Equals(x.Key.Design.Name, variableName, StringComparison.Ordinal)).Value.Value!
+            : (TValue)GetPersistentVariable(variableName).Value!;
 
     protected TBlock GetRuntimeFunctionBlock()
     {
-        var engine = RuntimeFunctionBlockExtractor.GetEngine(BlockExecutor);
+        ThrowIfEngineNotStarted();
+
+        var engine = RuntimeFunctionBlockExtractor.GetEngine(BlockExecutor!);
         var functionBlocks = RuntimeFunctionBlockExtractor.GetRuntimeFunctionBlocks(engine);
 
         return functionBlocks.OfType<TBlock>().Single();
     }
 
     protected virtual ISetting GetSetting(string settingName)
-        => BlockExecutor.GetSettings().First(x => string.Equals(x.Design.Name, settingName, StringComparison.Ordinal));
+        => DataflowInfo.Settings.First(x => string.Equals(x.Design.Name, settingName, StringComparison.Ordinal));
 
     protected virtual TValue GetSettingValue<TValue>(string settingName)
-        => (TValue)BlockExecutor.GetSettingValues().First(x => string.Equals(x.Key.Design.Name, settingName, StringComparison.Ordinal)).Value.Value!;
+        => BlockExecutor is not null
+            ? (TValue)BlockExecutor.GetSettingValues().First(x => string.Equals(x.Key.Design.Name, settingName, StringComparison.Ordinal)).Value.Value!
+            : (TValue)GetSetting(settingName).Value!;
 
     protected virtual void ProcessCycle()
     {
-        BlockExecutor.ProcessCycle();
+        if (BlockExecutor is null)
+            StartEngine();
+
+        BlockExecutor!.ProcessCycle();
         if (AllowErrorsInProcessCycle is false)
             ThrowIfErrorsLogged();
+    }
+
+    protected virtual void StartEngine()
+    {
+        BlockExecutor = new FunctionBlockExecutor(DataflowInfo, Assemblies, LoggerFactory);
+        BlockExecutor.StartEngine();
+        ThrowIfEngineNotStarted();
+    }
+
+    protected virtual void ThrowIfEngineNotStarted()
+    {
+        if (BlockExecutor is null)
+            throw new InvalidStateException("Engine is not started.");
+
+        if (BlockExecutor.EngineState is not EngineState.Starting and not EngineState.Running)
+            throw new InvalidStateException($"Invalid engine state found. Expected '{EngineState.Starting}' or '{EngineState.Running}' but found '{BlockExecutor.EngineState}'");
     }
 
     protected virtual void ThrowIfErrorsLogged()
