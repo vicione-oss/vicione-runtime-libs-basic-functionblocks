@@ -12,12 +12,13 @@ public class SchedulerTests
         [Fact]
         public void OutputIsTrueIfCurrentTimeIsScheduled()
         {
-            var scheduler = GetRuntimeFunctionBlock();
             var now = DateTime.Now;
-
-            scheduler.DeactivateTimer();
             ChangeSettingValue(nameof(Scheduler.Settings.Times), $"{(int)now.DayOfWeek}#{now.Hour:D2}:{now.Minute:D2}");
+            StartEngine();
+            // TODO: Currently we need a ProcessCycle to ensure the settings are applied. With Core v1.0.0 we need are able to apply settings immediately, so we can remove this ProcessCycle.
             ProcessCycle();
+            var scheduler = GetRuntimeFunctionBlock();
+            scheduler.DeactivateTimer();
             scheduler.CheckScheduler(now);
 
             ProcessCycle();
@@ -32,11 +33,12 @@ public class SchedulerTests
         [Fact]
         public void OutputsFalseIfCurrentTimeIsNotScheduled()
         {
-            var scheduler = GetRuntimeFunctionBlock();
             var now = DateTime.Now;
-
-            scheduler.DeactivateTimer();
+            StartEngine();
+            // TODO: Currently we need a ProcessCycle to ensure the settings are applied. With Core v1.0.0 we need are able to apply settings immediately, so we can remove this ProcessCycle.
             ProcessCycle();
+            var scheduler = GetRuntimeFunctionBlock();
+            scheduler.DeactivateTimer();
             scheduler.CheckScheduler(now);
 
             ProcessCycle();
@@ -49,15 +51,16 @@ public class SchedulerTests
         }
 
         [Fact]
-        public void DoseNotProcessCycleWhenDisabled()
+        public void DoesNotProcessCycleIfDisabled()
         {
-            var scheduler = GetRuntimeFunctionBlock();
             var now = DateTime.Now;
-
-            ChangeEnabled(false);
-            scheduler.DeactivateTimer();
             ChangeSettingValue(nameof(Scheduler.Settings.Times), $"{(int)now.DayOfWeek}#{now.Hour:D2}:{now.Minute:D2}");
+            ChangeEnabled(false);
+            StartEngine();
+            // TODO: Currently we need a ProcessCycle to ensure the settings are applied. With Core v1.0.0 we need are able to apply settings immediately, so we can remove this ProcessCycle.
             ProcessCycle();
+            var scheduler = GetRuntimeFunctionBlock();
+            scheduler.DeactivateTimer();
             scheduler.CheckScheduler(now);
 
             ProcessCycle();

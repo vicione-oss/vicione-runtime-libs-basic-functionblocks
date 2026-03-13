@@ -148,9 +148,9 @@ public class TimeOfDay12hTests
         public void CalculatesNewResults()
         {
             var outputSecondBefore = GetOutputValue<double>(nameof(TimeOfDay12h.ProcessDataOutputs.Second));
-            ProcessCycle();
             var outputValuesChanged = false;
-            BlockExecutor.OutputValuesChanged += (_, _) => outputValuesChanged = true;
+            StartEngine();
+            BlockExecutor!.OutputValuesChanged += (_, _) => outputValuesChanged = true;
             var watch = Stopwatch.StartNew();
 
             do
