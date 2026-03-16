@@ -6,9 +6,6 @@ namespace ViciOne.Constant.Tests;
 
 public class AlternatingValuesTests : RuntimeFunctionBlockTests<AlternatingValues>
 {
-    // Base test-class calls process cycle in constructor, so we need to set initial state
-    public AlternatingValuesTests() => GetRuntimeFunctionBlock().UseValueOne = true;
-
     [Fact]
     public void DoesNothingIfBlockIsNotEnabled()
     {

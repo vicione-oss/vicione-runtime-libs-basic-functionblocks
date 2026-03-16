@@ -101,13 +101,14 @@ public class RandomTests
         [Fact]
         public void CalculatesNewResultsWithoutInputChange()
         {
+            StartEngine();
             var cyclesToRun = 5;
             var outputValuesDouble = new List<double>();
             var outputValuesLong = new List<long>();
-            BlockExecutor.OutputValuesChanged += (_, _) =>
+            BlockExecutor!.OutputValuesChanged += (_, _) =>
             {
-                outputValuesDouble.Add((double)GetRuntimeProcessOutputChangedEntry(nameof(Random.ProcessDataOutputs.NextDouble)).Value!);
-                outputValuesLong.Add((long)GetRuntimeProcessOutputChangedEntry(nameof(Random.ProcessDataOutputs.NextLong)).Value!);
+                outputValuesDouble.Add(GetOutputValue<double>(nameof(Random.ProcessDataOutputs.NextDouble)));
+                outputValuesLong.Add(GetOutputValue<long>(nameof(Random.ProcessDataOutputs.NextLong)));
             };
 
             for (var i = 0; i < cyclesToRun; i++)
@@ -119,9 +120,6 @@ public class RandomTests
             outputValuesLong.Should()
                 .HaveCount(cyclesToRun).And
                 .OnlyHaveUniqueItems();
-
-            ChangedEntry GetRuntimeProcessOutputChangedEntry(string connectorName)
-                => BlockExecutor.GetOutputValues().First(x => string.Equals(x.Key.Design.Name, connectorName, System.StringComparison.Ordinal)).Value;
         }
 
         private static Dataflow ExtractDataflow(DataflowInfo dataflowInfo)
