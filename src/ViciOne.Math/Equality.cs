@@ -14,6 +14,11 @@ public partial class Equality
                 ProcessDataInputs.Double0.Changed ||
                 ProcessDataInputs.Double1.Changed;
 
+            if (useDoubleInputs == false &&
+                ProcessDataInputs.Long0.Changed == false &&
+                ProcessDataInputs.Long1.Changed == false)
+                useDoubleInputs = true;
+
             result = useDoubleInputs
                 ? GetResult(ProcessDataInputs.Double0.Value, ProcessDataInputs.Double1.Value)
                 : GetResult(ProcessDataInputs.Long0.Value, ProcessDataInputs.Long1.Value);

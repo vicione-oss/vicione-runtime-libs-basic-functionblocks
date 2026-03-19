@@ -21,7 +21,8 @@ public partial class Scheduler
         }
     }
 
-    internal void DeactivateTimer() => _timer?.Stop();
+    internal void DeactivateTimer()
+        => _timer?.Stop();
 
     protected override void Dispose(bool disposing)
     {
@@ -39,6 +40,7 @@ public partial class Scheduler
         base.InitializeII();
 
         _scheduler ??= new SchedulerCore();
+        ParseTimes();
 
         if (_timer is null)
         {
@@ -49,12 +51,10 @@ public partial class Scheduler
     }
 
     protected override void OnSettingChanged(IRuntimeSetting setting)
-    {
-        if (setting.Setting.Id != Settings.Times.Id)
-            return;
+        => ParseTimes();
 
-        _scheduler?.ParseTimes(Settings.Times.Value, Logger);
-    }
+    private void ParseTimes()
+        => _scheduler?.ParseTimes(Settings.Times.Value, Logger);
 
     protected override void ProcessCycle(IFunctionBlockCycleInfo cycleInfo)
     {
@@ -71,5 +71,6 @@ public partial class Scheduler
             SetConnectorValueIfNotEqual(ProcessDataOutputs.Trigger, false);
     }
 
-    private void Timer_Elapsed(object? sender, ElapsedEventArgs e) => CheckScheduler(e.SignalTime);
+    private void Timer_Elapsed(object? sender, ElapsedEventArgs e)
+        => CheckScheduler(e.SignalTime);
 }

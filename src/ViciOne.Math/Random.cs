@@ -12,13 +12,21 @@ public partial class Random
         if (FunctionBlockEnabled is false)
             return;
 
-        if ((ProcessDataInputs.Trigger.Changed && ProcessDataInputs.Trigger.Value) ||
-            (FunctionBlock.RunMode == RunMode.Cyclic))
+        if (ShouldGenerate())
         {
             int randomNumber = RandomNumberGenerator.GetInt32(Settings.Minimum.Value, Settings.Maximum.Value);
 
             SetConnectorValueIfNotEqual(ProcessDataOutputs.NextLong, randomNumber);
             SetConnectorValueIfNotEqual(ProcessDataOutputs.NextDouble, System.Math.Min(randomNumber + NextDouble(), Settings.Maximum.Value));
+        }
+
+        bool ShouldGenerate()
+        {
+            if (FunctionBlock.RunMode == RunMode.Cyclic)
+                return true;
+            if (ProcessDataInputs.Trigger.Value is false)
+                return false;
+            return ProcessDataInputs.Trigger.Changed || cycleInfo.IsFirstCycle;
         }
 
         static double NextDouble()

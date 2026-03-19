@@ -11,9 +11,12 @@ public partial class Double
             SetConnectorValueIfNotEqual(ProcessDataOutputs.Value, Settings.DefaultValue.Value);
     }
 
-    protected override void OnSettingChanged(IRuntimeSetting setting)
+    protected override void ProcessCycle(IFunctionBlockCycleInfo cycleInfo)
     {
-        base.OnSettingChanged(setting);
-        CalculateAndPublish();
+        if (cycleInfo.IsFirstCycle)
+            CalculateAndPublish();
     }
+
+    protected override void OnSettingChanged(IRuntimeSetting setting)
+        => CalculateAndPublish();
 }

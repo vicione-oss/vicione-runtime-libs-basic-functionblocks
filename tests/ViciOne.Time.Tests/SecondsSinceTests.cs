@@ -54,6 +54,7 @@ public class SecondsSinceTests
         [Fact]
         public void CalculatesNewResults()
         {
+            ProcessCycle();
             var outputSecondsBefore = GetOutputValue<double>(nameof(SecondsSince.ProcessDataOutputs.Seconds));
 
             ProcessCycle();

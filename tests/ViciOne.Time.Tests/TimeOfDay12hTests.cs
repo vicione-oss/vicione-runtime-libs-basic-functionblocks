@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using AwesomeAssertions;
 using AwesomeAssertions.Extensions;
@@ -65,11 +63,13 @@ public class TimeOfDay12hTests
         }
     }
 
-    public class OnSettingChanged() : RuntimeFunctionBlockTests<TimeOfDay12h>(GenerateDataflow())
+    public class OnSettingChanged : RuntimeFunctionBlockTests<TimeOfDay12h>
     {
         [RunOnlyIfTimezoneConditionsMetFact]
         public void SetsOutputIfUseUtcChanged()
         {
+            SetRunMode(ViciOne.Core.Contracts.DataModel.RunMode.Cyclic, uint.MaxValue);
+            ProcessCycle();
             var outputHourBefore = GetOutputValue<double>(nameof(TimeOfDay12h.ProcessDataOutputs.Hour));
             ChangeSettingValue(nameof(TimeOfDay12h.Settings.UseUtc), true);
 
@@ -82,6 +82,8 @@ public class TimeOfDay12hTests
         [RunOnlyIfTimezoneConditionsMetFact]
         public void DoesNotSetOutputIfBlockIsNotEnabled()
         {
+            SetRunMode(ViciOne.Core.Contracts.DataModel.RunMode.Cyclic, uint.MaxValue);
+            ProcessCycle();
             ChangeEnabled(false);
             ProcessCycle();
             var outputHourBefore = GetOutputValue<double>(nameof(TimeOfDay12h.ProcessDataOutputs.Hour));
@@ -96,15 +98,11 @@ public class TimeOfDay12hTests
         private static Dataflow ExtractDataflow(DataflowInfo dataflowInfo)
             => dataflowInfo.Dataflow as Dataflow ?? throw new InvalidOperationException("These test cases can only be executed if Core data model is used.");
 
-        private static (DataflowInfo, IEnumerable<Assembly>) GenerateDataflow()
+        private void SetRunMode(ViciOne.Core.Contracts.DataModel.RunMode runMode, uint cycleFrequency = 1)
         {
-            var assemblies = CreateDefaultAssemblies();
-            var info = GenerateDefaultDataflow(assemblies);
-            var dataflow = ExtractDataflow(info);
-            var block = dataflow.RootContainer.FunctionBlocks.Single();
-            block.RunMode = ViciOne.Core.Contracts.DataModel.RunMode.Cyclic;
-            block.CycleFrequency = uint.MaxValue;
-            return (info, assemblies.AllAssemblies);
+            var block = ExtractDataflow(DataflowInfo).RootContainer.FunctionBlocks.First();
+            block.RunMode = runMode;
+            block.CycleFrequency = cycleFrequency;
         }
 
         public sealed class RunOnlyIfTimezoneConditionsMetFact : FactAttribute

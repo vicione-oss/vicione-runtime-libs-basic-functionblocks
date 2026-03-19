@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Threading;
 using ACX.ViciOne.Data.Logger;
 using AwesomeAssertions;
 using ViciOne.Analysis;
-using ViciOne.Core.Dataflow.DataModel;
-using ViciOne.Core.Runtime.Execution;
 using Xunit;
 
 public class IntervalStatisticTests
@@ -23,10 +17,9 @@ public class IntervalStatisticTests
             var maximum = 34.5;
             var minimum = 45.6;
             var sum = 56.7;
-
             ChangeEnabled(false);
+            StartEngine();
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), 42.0);
-            ProcessCycle();
 
             var runtimeFunctionBlock = GetRuntimeFunctionBlock();
             runtimeFunctionBlock.SetAveragingTimeToOutputs(new(average, minimum, maximum, sum, difference));
@@ -47,8 +40,7 @@ public class IntervalStatisticTests
             var maximum = 34.5;
             var minimum = 45.6;
             var sum = 56.7;
-
-            ProcessCycle();
+            StartEngine();
 
             var runtimeFunctionBlock = GetRuntimeFunctionBlock();
             runtimeFunctionBlock.SetAveragingTimeToOutputs(new(average, minimum, maximum, sum, difference));
@@ -83,7 +75,6 @@ public class IntervalStatisticTests
             var maximum = 34.5;
             var minimum = 45.6;
             var sum = 56.7;
-
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), 42.0);
             ProcessCycle();
 
@@ -106,7 +97,6 @@ public class IntervalStatisticTests
             var maximum = 34.5;
             var minimum = 45.6;
             var sum = 56.7;
-
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), 42.0);
             ProcessCycle();
             var runtimeFunctionBlock = GetRuntimeFunctionBlock();
@@ -156,11 +146,11 @@ public class IntervalStatisticTests
         public void DoesNothingIfInputWasNotChanged()
         {
             ChangeSettingValue(nameof(IntervalStatistic.Settings.CompressionTime), 200);
+
             ProcessCycle();
+
             var fb = GetRuntimeFunctionBlock();
-
             var weightedAverage = AverageExtractor.GetWeightedAverage(fb);
-
             weightedAverage.Should().BeNull();
         }
 
@@ -169,7 +159,6 @@ public class IntervalStatisticTests
         {
             ChangeSettingValue(nameof(IntervalStatistic.Settings.CompressionTime), 200);
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), 2.0);
-
             ProcessCycle();
             var fb = GetRuntimeFunctionBlock();
             var weightedAverage = AverageExtractor.GetWeightedAverage(fb);
@@ -181,26 +170,14 @@ public class IntervalStatisticTests
                 waitHandle.Set();
             };
             waitHandle.WaitOne(1000);
-
-            ProcessCycle();
-
-            GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Average)).Should().Be(expectedValues!.Average);
-            GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Difference)).Should().Be(expectedValues.Difference);
-            GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Maximum)).Should().Be(expectedValues.Maximum);
-            GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Minimum)).Should().Be(expectedValues.Minimum);
-            GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Sum)).Should().Be(expectedValues.Sum);
-
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), 3.0);
-
-
             ProcessCycle();
-
             waitHandle.Reset();
             waitHandle.WaitOne(1000);
 
             ProcessCycle();
 
-            GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Average)).Should().Be(expectedValues.Average);
+            GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Average)).Should().Be(expectedValues!.Average);
             GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Difference)).Should().Be(expectedValues.Difference);
             GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Maximum)).Should().Be(expectedValues.Maximum);
             GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Minimum)).Should().Be(expectedValues.Minimum);
@@ -212,7 +189,6 @@ public class IntervalStatisticTests
         {
             ChangeSettingValue(nameof(IntervalStatistic.Settings.CompressionTime), 200);
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), -1.0);
-
             ProcessCycle();
             var fb = GetRuntimeFunctionBlock();
             var weightedAverage = AverageExtractor.GetWeightedAverage(fb);
@@ -268,14 +244,12 @@ public class IntervalStatisticTests
             GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Minimum)).Should().Be(expectedValues.Minimum);
             GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Sum)).Should().Be(expectedValues.Sum);
         }
-    }
 
-    public class ProcessCycle_DifferentDefaultValueOnInput() : RuntimeFunctionBlockTests<IntervalStatistic>(GenerateDataflow())
-    {
         [Fact]
         public void UpdatesOutputCorrectlyWithNoInputIfDefaultValueDiffersFromDesign()
         {
             ChangeSettingValue(nameof(IntervalStatistic.Settings.CompressionTime), 200);
+            ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), double.MaxValue);
             ProcessCycle();
             var fb = GetRuntimeFunctionBlock();
             var weightedAverage = AverageExtractor.GetWeightedAverage(fb);
@@ -296,19 +270,6 @@ public class IntervalStatisticTests
             GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Maximum)).Should().Be(expectedValues.Maximum);
             GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Minimum)).Should().Be(expectedValues.Minimum);
             GetOutputValue<double>(nameof(IntervalStatistic.ProcessDataOutputs.Sum)).Should().Be(expectedValues.Sum);
-        }
-
-        private static Dataflow ExtractDataflow(DataflowInfo dataflowInfo)
-            => dataflowInfo.Dataflow as Dataflow ?? throw new InvalidOperationException("These test cases can only be executed if Core data model is used.");
-
-        private static (DataflowInfo, IEnumerable<Assembly>) GenerateDataflow()
-        {
-            var assemblies = CreateDefaultAssemblies();
-            var info = GenerateDefaultDataflow(assemblies);
-            var dataflow = ExtractDataflow(info);
-            var block = dataflow.RootContainer.FunctionBlocks.Single();
-            block.ProcessDataInputs.Single().Value = double.MaxValue;
-            return (info, assemblies.AllAssemblies);
         }
     }
 

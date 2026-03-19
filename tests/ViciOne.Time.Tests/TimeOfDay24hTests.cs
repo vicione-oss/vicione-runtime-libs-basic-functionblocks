@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using AwesomeAssertions;
 using AwesomeAssertions.Extensions;
@@ -29,22 +27,13 @@ public class TimeOfDay24hTests
         }
     }
 
-    public class OnSettingChanged() : RuntimeFunctionBlockTests<TimeOfDay24h>(GenerateDataflow())
+    public class OnSettingChanged : RuntimeFunctionBlockTests<TimeOfDay24h>
     {
-        private static (DataflowInfo, IEnumerable<Assembly>) GenerateDataflow()
-        {
-            var assemblies = CreateDefaultAssemblies();
-            var info = GenerateDefaultDataflow(assemblies);
-            var dataflow = ExtractDataflow(info);
-            var block = dataflow.RootContainer.FunctionBlocks.Single();
-            block.RunMode = ViciOne.Core.Contracts.DataModel.RunMode.Cyclic;
-            block.CycleFrequency = uint.MaxValue;
-            return (info, assemblies.AllAssemblies);
-        }
-
         [RunOnlyIfTimezoneIsNotUtcFact]
         public void SetsOutputIfUseUtcChanged()
         {
+            SetRunMode(ViciOne.Core.Contracts.DataModel.RunMode.Cyclic, uint.MaxValue);
+            ProcessCycle();
             var outputHourBefore = GetOutputValue<double>(nameof(TimeOfDay24h.ProcessDataOutputs.Hour));
             ChangeSettingValue(nameof(TimeOfDay24h.Settings.UseUtc), true);
 
@@ -57,6 +46,8 @@ public class TimeOfDay24hTests
         [RunOnlyIfTimezoneIsNotUtcFact]
         public void DoesNotSetOutputIfBlockIsNotEnabled()
         {
+            SetRunMode(ViciOne.Core.Contracts.DataModel.RunMode.Cyclic, uint.MaxValue);
+            ProcessCycle();
             ChangeEnabled(false);
             ProcessCycle();
             var outputHourBefore = GetOutputValue<double>(nameof(TimeOfDay24h.ProcessDataOutputs.Hour));
@@ -70,6 +61,13 @@ public class TimeOfDay24hTests
 
         private static Dataflow ExtractDataflow(DataflowInfo dataflowInfo)
             => dataflowInfo.Dataflow as Dataflow ?? throw new InvalidOperationException("These test cases can only be executed if Core data model is used.");
+
+        private void SetRunMode(ViciOne.Core.Contracts.DataModel.RunMode runMode, uint cycleFrequency = 1)
+        {
+            var block = ExtractDataflow(DataflowInfo).RootContainer.FunctionBlocks.First();
+            block.RunMode = runMode;
+            block.CycleFrequency = cycleFrequency;
+        }
 
         public sealed class RunOnlyIfTimezoneIsNotUtcFact : FactAttribute
         {
@@ -151,16 +149,6 @@ public class TimeOfDay24hTests
 
             var outputSecondAfter = GetOutputValue<double>(nameof(TimeOfDay24h.ProcessDataOutputs.Second));
             outputSecondAfter.Should().Be(outputSecondBefore);
-        }
-
-        [Fact]
-        public void SetsOutputIfSettingChanged()
-        {
-            ChangeSettingValue(nameof(TimeOfDay24h.Settings.UseUtc), true);
-
-            ProcessCycle();
-
-            // TODO: FB auf RunMode "Cyclic" und CycleFrequency = uint.MaxValue stellen, dann muss der Ausgang bei Einstellungs-Änderung trotzdem berechnet werden
         }
     }
 }

@@ -38,10 +38,9 @@ public class OffsetTests
         [Fact]
         public void DoesNotProcessSettingIfBlockIsNotEnabled()
         {
-            ChangeEnabled(false);
-            ProcessCycle();
             var outputValueBefore = GetOutputValue<double>(nameof(Offset.ProcessDataOutputs.Value));
             ChangeSettingValue(nameof(Offset.Settings.Offset), 12.0);
+            ChangeEnabled(false);
 
             ProcessCycle();
 
@@ -61,8 +60,9 @@ public class OffsetTests
         }
 
         [Fact]
-        public void SetsOutputIfSettingChanged()
+        public void SetsOutputIfSettingChangedAfterFirstRun()
         {
+            ProcessCycle();
             ChangeSettingValue(nameof(Offset.Settings.Offset), 13.57);
 
             ProcessCycle();

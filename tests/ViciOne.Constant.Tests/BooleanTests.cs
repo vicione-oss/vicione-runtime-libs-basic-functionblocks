@@ -9,10 +9,9 @@ public class BooleanTests
         [Fact]
         public void DoesNothingIfBlockIsNotEnabled()
         {
-            ChangeEnabled(false);
-            ProcessCycle();
             var outputValueBefore = GetOutputValue<bool>(nameof(Boolean.ProcessDataOutputs.Value));
-            ChangeSettingValue(nameof(Boolean.Settings.DefaultValue), true);
+            ChangeEnabled(false);
+            ChangeSettingValue(nameof(Boolean.Settings.DefaultValue), outputValueBefore == false);
 
             ProcessCycle();
 
@@ -21,16 +20,30 @@ public class BooleanTests
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(false, false)]
-        public void SetsOutputIfSettingChanged(bool setting, bool expectedValue)
+        [InlineData(true)]
+        [InlineData(false)]
+        public void PublishesSettingValueOnFirstRun(bool settingValue)
         {
-            ChangeSettingValue(nameof(Boolean.Settings.DefaultValue), setting);
+            ChangeSettingValue(nameof(Boolean.Settings.DefaultValue), settingValue);
 
             ProcessCycle();
 
             var outputValue = GetOutputValue<bool>(nameof(Boolean.ProcessDataOutputs.Value));
-            outputValue.Should().Be(expectedValue);
+            outputValue.Should().Be(settingValue);
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void SetsOutputIfSettingChangedAfterFirstRun(bool settingValue)
+        {
+            ProcessCycle();
+            ChangeSettingValue(nameof(Boolean.Settings.DefaultValue), settingValue);
+
+            ProcessCycle();
+
+            var outputValue = GetOutputValue<bool>(nameof(Boolean.ProcessDataOutputs.Value));
+            outputValue.Should().Be(settingValue);
         }
     }
 }

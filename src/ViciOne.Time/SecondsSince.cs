@@ -22,10 +22,17 @@ public partial class SecondsSince
             ? DateTime.UtcNow
             : DateTime.Now;
 
-    protected override void OnSettingChanged(IRuntimeSetting setting)
+    public override void InitializeII()
     {
-        base.OnSettingChanged(setting);
+        base.InitializeII();
+        ParseStartDateSetting();
+    }
 
+    protected override void OnSettingChanged(IRuntimeSetting setting)
+        => ParseStartDateSetting();
+
+    private void ParseStartDateSetting()
+    {
         _startDate = DateTime.ParseExact(Settings.StartDate.Value!,
             "yyyy-MM-dd",
             CultureInfo.InvariantCulture,
@@ -35,8 +42,6 @@ public partial class SecondsSince
 
         if (Settings.UseUtc.Value)
             _startDate = _startDate.ToUniversalTime();
-
-        CalculateAndPublish();
     }
 
     protected override void ProcessCycle(IFunctionBlockCycleInfo cycleInfo)

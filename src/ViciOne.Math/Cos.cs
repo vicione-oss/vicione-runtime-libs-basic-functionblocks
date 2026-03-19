@@ -15,10 +15,7 @@ public partial class Cos
     }
 
     protected override void OnSettingChanged(IRuntimeSetting setting)
-    {
-        base.OnSettingChanged(setting);
-        CalculateAndPublish();
-    }
+        => CalculateAndPublish();
 
     protected override void ProcessCycle(IFunctionBlockCycleInfo cycleInfo)
         => CalculateAndPublish();

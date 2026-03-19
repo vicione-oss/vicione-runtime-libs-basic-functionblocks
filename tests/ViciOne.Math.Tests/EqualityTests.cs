@@ -30,10 +30,9 @@ public class EqualityTests
         [InlineData(2, 1, false, true, true, false)]
         public void CalculatesCorrectResultForLongInputs(long firstInput, long secondInput, bool expectedEqual, bool expectedUnequal, bool expectedGreaterThan, bool expectedLessThan)
         {
-            // TODO: Remove the first ProcessCycle call after upgrade to Core v1.0.0.
-            //       Currently, all inputs are changed in the first ProcessCycle call, so the block uses double inputs for the comparison.
-            //       Maybe it would be better to take the "Connected" flag into account in the block to determine which inputs to use.
-            ProcessCycle();
+            // As this block uses the double inputs if all or no inputs are changed, we need to ensure that the engine is running
+            // before changing the long inputs so they are marked as changed.
+            StartEngine();
             ChangeInputValue(nameof(Equality.ProcessDataInputs.Long0), firstInput);
             ChangeInputValue(nameof(Equality.ProcessDataInputs.Long1), secondInput);
 
@@ -64,6 +63,24 @@ public class EqualityTests
 
         [Fact]
         public void UsesDoubleInputsIfAllInputsChanged()
+        {
+            ProcessCycle();
+            ChangeInputValue(nameof(Equality.ProcessDataInputs.Double0), 1.0);
+            ChangeInputValue(nameof(Equality.ProcessDataInputs.Double1), 2.0);
+            ChangeInputValue(nameof(Equality.ProcessDataInputs.Long0), 2L);
+            ChangeInputValue(nameof(Equality.ProcessDataInputs.Long1), 1L);
+
+            ProcessCycle();
+
+            (var equalOutputValue, var unequalOutputValue, var greaterThanOutputValue, var lessThanOutputValue) = GetOutputValues();
+            equalOutputValue.Should().BeFalse();
+            unequalOutputValue.Should().BeTrue();
+            greaterThanOutputValue.Should().BeFalse();
+            lessThanOutputValue.Should().BeTrue();
+        }
+
+        [Fact]
+        public void UsesDoubleInputsIfNoInputsChanged()
         {
             ChangeInputValue(nameof(Equality.ProcessDataInputs.Double0), 1.0);
             ChangeInputValue(nameof(Equality.ProcessDataInputs.Double1), 2.0);

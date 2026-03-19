@@ -19,6 +19,21 @@ public class AddTests
         }
 
         [Fact]
+        public void CalculatesCorrectResultIfBlockWasDisabled()
+        {
+            ChangeInputValue(nameof(Add.ProcessDataInputs.Addend1), 42.0);
+            ChangeInputValue(nameof(Add.ProcessDataInputs.Addend2), 10.0);
+            ChangeEnabled(false);
+            ProcessCycle();
+            ChangeEnabled(true);
+
+            ProcessCycle();
+
+            var sum = GetOutputValue<double>(nameof(Add.ProcessDataOutputs.Sum));
+            sum.Should().Be(52);
+        }
+
+        [Fact]
         public void DoesNothingIfBlockIsNotEnabled()
         {
             var sumBefore = GetOutputValue<double>(nameof(Add.ProcessDataOutputs.Sum));
