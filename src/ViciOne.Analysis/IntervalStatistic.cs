@@ -1,24 +1,37 @@
-﻿using ACX.ViciOne.Data.Logger;
+﻿using System.Threading;
 using ViciOne.Core.Contracts.Runtime;
 
 namespace ViciOne.Analysis;
 
-public partial class IntervalStatistic
+/// <summary>
+///     Aggregates the input value over a fixed interval (<c>CompressionTime</c>) into a time-weighted average, minimum,
+///     maximum, sum and difference.
+/// </summary>
+/// <remarks>
+///     The block runs in RunMode <c>Change</c>. Value changes are aggregated incrementally in <see cref="ProcessCycle" />.
+///     The end of an interval is signalled by the process-wide <see cref="IntervalScheduler" />: it only stores the
+///     timestamp and marks the block as changed. Completion and outputs follow in the next engine cycle on the engine
+///     thread, so the aggregation needs no locks.
+/// </remarks>
+public partial class IntervalStatistic : IIntervalElapsedHandler
 {
-    private WeightedAverage? _average;
+    private const long NoIntervalElapsed = long.MinValue;
+
+    private IntervalAccumulator? _accumulator;
     private bool _dataReceived;
+    private long _elapsedTimestamp = NoIntervalElapsed;
     private bool _passThroughInputValueAsAverage = true;
+    private IntervalRegistration? _registration;
 
-    private void AveragingTimeExpired(object? sender, AveragingTimeExpiredEventArgs e)
-        => SetAveragingTimeToOutputs(e);
+    internal IntervalScheduler Scheduler { get; set; } = IntervalScheduler.Shared;
 
-    private void CreateAverage()
+    private void CreateAccumulator()
     {
-        if (_average is not null)
+        if (_accumulator is not null)
             return;
 
-        _average = new WeightedAverage(Settings.CompressionTime.Value, ProcessDataInputs.Value.Value);
-        _average.AveragingTimeExpired += AveragingTimeExpired;
+        _accumulator = new IntervalAccumulator(ProcessDataInputs.Value.Value, Scheduler.GetTimestamp());
+        _registration = Scheduler.Register(Settings.CompressionTime.Value, this);
     }
 
     protected override void Dispose(bool disposing)
@@ -26,29 +39,43 @@ public partial class IntervalStatistic
         base.Dispose(disposing);
 
         if (disposing)
-            DisposeAverage();
+            DisposeAccumulator();
     }
 
-    private void DisposeAverage()
+    private void DisposeAccumulator()
     {
-        if (_average is null)
-            return;
+        // After unregistering, the scheduler no longer calls back; a tick still stored belongs to the old interval.
+        _registration?.Dispose();
+        _registration = null;
+        _accumulator = null;
+        Interlocked.Exchange(ref _elapsedTimestamp, NoIntervalElapsed);
+    }
 
-        _average.AveragingTimeExpired -= AveragingTimeExpired;
-        _average.Dispose();
-        _average = null;
+    void IIntervalElapsedHandler.OnIntervalElapsed(long timestamp)
+    {
+        Interlocked.Exchange(ref _elapsedTimestamp, timestamp);
+        MarkAsChanged();
     }
 
     protected override void OnSettingChanged(IRuntimeSetting setting)
     {
-        DisposeAverage();
+        DisposeAccumulator();
         _passThroughInputValueAsAverage = true;
         if (_dataReceived)
-            CreateAverage();
+            CreateAccumulator();
     }
 
     protected override void ProcessCycle(IFunctionBlockCycleInfo cycleInfo)
     {
+        // An elapsed interval is always completed, but not written to the outputs while the block is disabled.
+        var elapsedTimestamp = Interlocked.Exchange(ref _elapsedTimestamp, NoIntervalElapsed);
+        if (elapsedTimestamp != NoIntervalElapsed && _accumulator is not null)
+        {
+            var result = _accumulator.Complete(elapsedTimestamp);
+            if (FunctionBlockEnabled)
+                SetResultToOutputs(result);
+        }
+
         if (FunctionBlockEnabled == false)
             return;
 
@@ -60,30 +87,32 @@ public partial class IntervalStatistic
             if (_dataReceived == false)
             {
                 _dataReceived = true;
-                CreateAverage();
+                CreateAccumulator();
             }
             else
-                _average?.AddValue(ProcessDataInputs.Value.Value);
+                _accumulator?.Add(ProcessDataInputs.Value.Value, Scheduler.GetTimestamp());
         }
     }
 
-    internal void SetAveragingTimeToOutputs(AveragingTimeExpiredEventArgs e)
+    internal void SetResultToOutputs(in IntervalResult result)
     {
-        if (FunctionBlockEnabled == false || _dataReceived == false)
+        if (_dataReceived == false)
             return;
 
+        // Like the previous implementation, Last and the pass-through average take the current input value, which may
+        // differ from the last aggregated value (e.g. NaN, or a change while the block was disabled).
         if (_passThroughInputValueAsAverage)
         {
             SetConnectorValueIfNotEqual(ProcessDataOutputs.Average, ProcessDataInputs.Value.Value);
             _passThroughInputValueAsAverage = false;
         }
         else
-            SetConnectorValueIfNotEqual(ProcessDataOutputs.Average, e.Average);
+            SetConnectorValueIfNotEqual(ProcessDataOutputs.Average, result.Average);
 
-        SetConnectorValueIfNotEqual(ProcessDataOutputs.Difference, e.Difference);
+        SetConnectorValueIfNotEqual(ProcessDataOutputs.Difference, result.Difference);
         SetConnectorValueIfNotEqual(ProcessDataOutputs.Last, ProcessDataInputs.Value.Value);
-        SetConnectorValueIfNotEqual(ProcessDataOutputs.Maximum, e.Maximum);
-        SetConnectorValueIfNotEqual(ProcessDataOutputs.Minimum, e.Minimum);
-        SetConnectorValueIfNotEqual(ProcessDataOutputs.Sum, e.Sum);
+        SetConnectorValueIfNotEqual(ProcessDataOutputs.Maximum, result.Maximum);
+        SetConnectorValueIfNotEqual(ProcessDataOutputs.Minimum, result.Minimum);
+        SetConnectorValueIfNotEqual(ProcessDataOutputs.Sum, result.Sum);
     }
 }
