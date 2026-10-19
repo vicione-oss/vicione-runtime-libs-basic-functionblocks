@@ -60,6 +60,22 @@ internal sealed class IntervalAccumulator
             _maximum = value;
     }
 
+    private IntervalResult Calculate(long timestamp)
+    {
+        var duration = timestamp - _intervalStart;
+        var average = _count == 1 || duration <= 0
+            ? _last
+            : Math.Clamp((_weightedSum + (_last * (timestamp - _entryStart))) / duration, _minimum, _maximum);
+
+        double difference;
+        if (_firstDifference)
+            difference = _count > 2 ? _first - _secondLast : 0;
+        else
+            difference = _first - _last;
+
+        return new IntervalResult(average, _minimum, _maximum, _sum, difference, _last);
+    }
+
     /// <summary>
     ///     Completes the running interval at the given time and starts the next one with the last value.
     /// </summary>
@@ -77,22 +93,6 @@ internal sealed class IntervalAccumulator
             _firstDifference = false;
         StartInterval(_last, timestamp);
         return result;
-    }
-
-    private IntervalResult Calculate(long timestamp)
-    {
-        var duration = timestamp - _intervalStart;
-        var average = _count == 1 || duration <= 0
-            ? _last
-            : Math.Clamp((_weightedSum + (_last * (timestamp - _entryStart))) / duration, _minimum, _maximum);
-
-        double difference;
-        if (_firstDifference)
-            difference = _count > 2 ? _first - _secondLast : 0;
-        else
-            difference = _first - _last;
-
-        return new IntervalResult(average, _minimum, _maximum, _sum, difference, _last);
     }
 
     private void StartInterval(double value, long timestamp)

@@ -17,15 +17,16 @@ internal sealed class IntervalRegistration : IDisposable
         Handler = handler;
     }
 
+    internal bool ErrorReported { get; set; }
+
     internal IntervalSchedulerGroup Group { get; }
+
     internal IIntervalElapsedHandler Handler { get; }
 
     /// <summary>
     ///     Position within <see cref="Group" />; -1 once unregistered.
     /// </summary>
     internal int Index { get; set; } = -1;
-
-    internal bool ErrorReported { get; set; }
 
     public void Dispose()
         => _scheduler.Unregister(this);

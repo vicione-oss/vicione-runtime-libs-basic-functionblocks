@@ -54,6 +54,18 @@ internal sealed class IntervalScheduler
     public TimeProvider TimeProvider { get; }
 
     /// <summary>
+    ///     Drops all groups and lets the thread end. Used when the load context unloads.
+    /// </summary>
+    internal void Clear()
+    {
+        lock (_sync)
+        {
+            _groups.Clear();
+            Monitor.PulseAll(_sync);
+        }
+    }
+
+    /// <summary>
     ///     Current timestamp. In production it is read directly from <see cref="Stopwatch" />, because the virtual call
     ///     through <see cref="TimeProvider" /> on every value change is measurable on small ARM devices.
     /// </summary>
@@ -171,18 +183,6 @@ internal sealed class IntervalScheduler
                 _groups.Remove(group.IntervalMilliseconds);
                 Monitor.PulseAll(_sync);
             }
-        }
-    }
-
-    /// <summary>
-    ///     Drops all groups and lets the thread end. Used when the load context unloads.
-    /// </summary>
-    internal void Clear()
-    {
-        lock (_sync)
-        {
-            _groups.Clear();
-            Monitor.PulseAll(_sync);
         }
     }
 }

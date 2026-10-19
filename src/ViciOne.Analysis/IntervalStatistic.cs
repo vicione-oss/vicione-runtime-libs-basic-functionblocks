@@ -28,6 +28,8 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
     private bool _passThroughInputValueAsAverage = true;
     private IntervalRegistration? _registration;
 
+    internal long MissedIntervals => Interlocked.Read(ref _missedIntervals);
+
     internal IntervalScheduler Scheduler { get; set; } = IntervalScheduler.Shared;
 
     private void CreateAccumulator()
@@ -48,8 +50,6 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
         base.Dispose(disposing);
     }
 
-    internal long MissedIntervals => Interlocked.Read(ref _missedIntervals);
-
     private void DisposeAccumulator()
     {
         // After unregistering, the scheduler no longer calls back; a tick still stored belongs to the old interval.
@@ -66,19 +66,6 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
         if (missedIntervals > 0)
             Interlocked.Add(ref _missedIntervals, missedIntervals);
         MarkAsChanged();
-    }
-
-    private void ReportMissedIntervals()
-    {
-        if (Interlocked.Read(ref _missedIntervals) == 0)
-            return;
-
-        var now = Scheduler.GetTimestamp();
-        if (_lastMissedWarning != NoWarningYet && Scheduler.TimeProvider.GetElapsedTime(_lastMissedWarning, now) < s_missedWarningInterval)
-            return;
-
-        _lastMissedWarning = now;
-        Logger.IntervalsMissed(Interlocked.Exchange(ref _missedIntervals, 0));
     }
 
     protected override void OnSettingChanged(IRuntimeSetting setting)
@@ -117,6 +104,19 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
             else
                 _accumulator?.Add(ProcessDataInputs.Value.Value, Scheduler.GetTimestamp());
         }
+    }
+
+    private void ReportMissedIntervals()
+    {
+        if (Interlocked.Read(ref _missedIntervals) == 0)
+            return;
+
+        var now = Scheduler.GetTimestamp();
+        if (_lastMissedWarning != NoWarningYet && Scheduler.TimeProvider.GetElapsedTime(_lastMissedWarning, now) < s_missedWarningInterval)
+            return;
+
+        _lastMissedWarning = now;
+        Logger.IntervalsMissed(Interlocked.Exchange(ref _missedIntervals, 0));
     }
 
     internal void SetResultToOutputs(in IntervalResult result)
