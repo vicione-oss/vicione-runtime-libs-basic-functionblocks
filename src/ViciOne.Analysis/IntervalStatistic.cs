@@ -30,8 +30,9 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
         if (_accumulator is not null)
             return;
 
-        _accumulator = new IntervalAccumulator(ProcessDataInputs.Value.Value, Scheduler.GetTimestamp());
+        var accumulator = new IntervalAccumulator(ProcessDataInputs.Value.Value, Scheduler.GetTimestamp());
         _registration = Scheduler.Register(Settings.CompressionTime.Value, this);
+        _accumulator = accumulator;
     }
 
     protected override void Dispose(bool disposing)
