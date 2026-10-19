@@ -34,6 +34,16 @@ public class IntervalAccumulatorTests
         }
 
         [Fact]
+        public void KeepsAverageOfConstantInputExact()
+        {
+            var accumulator = new IntervalAccumulator(0.1, 0);
+            for (var t = 3; t < 1000; t += 7)
+                accumulator.Add(0.1, t);
+
+            accumulator.Complete(1000).Average.Should().Be(0.1);
+        }
+
+        [Fact]
         public void CarriesLastValueIntoNextInterval()
         {
             var accumulator = new IntervalAccumulator(1, 0);

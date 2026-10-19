@@ -1,4 +1,6 @@
-﻿namespace ViciOne.Analysis;
+﻿using System;
+
+namespace ViciOne.Analysis;
 
 /// <summary>
 ///     Aggregates the values of an interval incrementally in O(1) per value and without allocations.
@@ -71,6 +73,8 @@ internal sealed class IntervalAccumulator
             timestamp = _entryStart;
 
         var result = Calculate(timestamp);
+        if (_count > 1)
+            _firstDifference = false;
         StartInterval(_last, timestamp);
         return result;
     }
@@ -80,19 +84,11 @@ internal sealed class IntervalAccumulator
         var duration = timestamp - _intervalStart;
         var average = _count == 1 || duration <= 0
             ? _last
-            : (_weightedSum + (_last * (timestamp - _entryStart))) / duration;
+            : Math.Clamp((_weightedSum + (_last * (timestamp - _entryStart))) / duration, _minimum, _maximum);
 
         double difference;
         if (_firstDifference)
-        {
-            if (_count <= 1)
-                difference = 0;
-            else
-            {
-                _firstDifference = false;
-                difference = _count > 2 ? _first - _secondLast : 0;
-            }
-        }
+            difference = _count > 2 ? _first - _secondLast : 0;
         else
             difference = _first - _last;
 
