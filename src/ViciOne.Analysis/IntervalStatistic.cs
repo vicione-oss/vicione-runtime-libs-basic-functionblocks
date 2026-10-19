@@ -37,10 +37,10 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
 
     protected override void Dispose(bool disposing)
     {
-        base.Dispose(disposing);
-
         if (disposing)
             DisposeAccumulator();
+
+        base.Dispose(disposing);
     }
 
     private void DisposeAccumulator()
