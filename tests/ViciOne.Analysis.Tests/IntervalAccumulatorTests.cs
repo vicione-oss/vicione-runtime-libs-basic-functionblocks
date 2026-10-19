@@ -76,6 +76,55 @@ public class IntervalAccumulatorTests
         }
     }
 
+    public class NaNInitializationValue
+    {
+        [Fact]
+        public void ReturnsZeroIfNoValueWasAdded()
+        {
+            var accumulator = new IntervalAccumulator(double.NaN, 0);
+
+            accumulator.Complete(100).Should().Be(new IntervalResult(0, 0, 0, 0, 0, 0));
+        }
+
+        [Fact]
+        public void IgnoresInitializationValueLikePreviousImplementation()
+        {
+            var accumulator = new IntervalAccumulator(double.NaN, 0);
+            accumulator.Add(5, 50);
+
+            accumulator.Complete(100).Should().Be(new IntervalResult(5, 5, 5, 0, 0, 5));
+        }
+
+        [Fact]
+        public void WeightsAverageFromFirstValue()
+        {
+            var accumulator = new IntervalAccumulator(double.NaN, 0);
+            accumulator.Add(4, 50);
+            accumulator.Add(8, 75);
+
+            var result = accumulator.Complete(100);
+
+            // 4 * 25 + 8 * 25 → 300 / 50
+            result.Average.Should().BeApproximately(6, 1e-9);
+            result.Minimum.Should().Be(4);
+            result.Sum.Should().Be(8);
+        }
+
+        [Fact]
+        public void KeepsFirstDifferenceRuleForNextInterval()
+        {
+            var accumulator = new IntervalAccumulator(double.NaN, 0);
+            accumulator.Add(5, 50);
+            accumulator.Complete(100);
+
+            accumulator.Add(2, 110);
+            accumulator.Add(4, 120);
+            accumulator.Add(7, 130);
+
+            accumulator.Complete(200).Difference.Should().Be(5 - 4);
+        }
+    }
+
     public class Add
     {
         [Fact]

@@ -23,8 +23,14 @@ internal sealed class IntervalAccumulator
     private double _sum;
     private double _weightedSum;
 
+    /// <param name="initializationValue">Value present at the start; NaN means no value yet.</param>
+    /// <param name="timestamp">Start of the first interval.</param>
     public IntervalAccumulator(double initializationValue, long timestamp)
-        => StartInterval(double.IsNaN(initializationValue) ? 0 : initializationValue, timestamp);
+    {
+        StartInterval(double.IsNaN(initializationValue) ? 0 : initializationValue, timestamp);
+        if (double.IsNaN(initializationValue))
+            _count = 0;
+    }
 
     /// <summary>
     ///     Records a new value. The previous value is weighted by the time it was present.
@@ -33,6 +39,12 @@ internal sealed class IntervalAccumulator
     {
         if (double.IsNaN(value))
             return;
+
+        if (_count == 0)
+        {
+            StartInterval(value, timestamp);
+            return;
+        }
 
         _weightedSum += _last * (timestamp - _entryStart);
         _entryStart = timestamp;
