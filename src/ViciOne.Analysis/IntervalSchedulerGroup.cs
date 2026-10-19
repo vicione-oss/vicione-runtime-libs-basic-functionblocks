@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace ViciOne.Analysis;
 
@@ -49,14 +50,18 @@ internal sealed class IntervalSchedulerGroup(long intervalMilliseconds, long per
             {
                 member.Handler.OnIntervalElapsed(now, missedIntervals);
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                // A faulty receiver must not stop the remaining instances of the group.
+                if (member.ErrorReported == false)
+                {
+                    member.ErrorReported = true;
+                    Trace.TraceError($"{nameof(IntervalScheduler)}: interval handler failed, further failures are not reported: {exception}");
+                }
             }
         }
 
         NextDue += period;
-        // After a long stall (e.g. suspend), do not catch up on all missed intervals.
+        // Scheduler thread starved: do not catch up on all missed intervals.
         if (NextDue <= now)
             NextDue = now + period;
     }

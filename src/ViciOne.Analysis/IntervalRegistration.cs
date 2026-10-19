@@ -25,6 +25,8 @@ internal sealed class IntervalRegistration : IDisposable
     /// </summary>
     internal int Index { get; set; } = -1;
 
+    internal bool ErrorReported { get; set; }
+
     public void Dispose()
         => _scheduler.Unregister(this);
 }

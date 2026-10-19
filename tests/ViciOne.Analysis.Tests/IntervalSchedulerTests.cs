@@ -46,6 +46,23 @@ public class IntervalSchedulerTests
         }
 
         [Fact]
+        public void TicksRemainingMembersIfHandlerThrows()
+        {
+            var handler = new CountingIntervalElapsedHandler();
+            using var failing = _scheduler.Register(100, new ThrowingIntervalElapsedHandler());
+            using var registration = _scheduler.Register(100, handler);
+
+            for (var i = 0; i < 2; i++)
+            {
+                _time.Advance(100);
+                _scheduler.RunDueGroups();
+            }
+
+            handler.Count.Should().Be(2);
+            failing.ErrorReported.Should().BeTrue();
+        }
+
+        [Fact]
         public void ReportsMissedIntervalsWhenFallingBehind()
         {
             var handler = new CountingIntervalElapsedHandler();
