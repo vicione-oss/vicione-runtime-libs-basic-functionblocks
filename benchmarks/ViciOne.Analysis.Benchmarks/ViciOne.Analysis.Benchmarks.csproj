@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>true</IsPublishable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ViciOne.Core.Runtime" />
+    <PackageReference Include="ViciOne.Core.Runtime.Execution" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ViciOne.Analysis\ViciOne.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\ViciOne.Math\ViciOne.Math.csproj" />
+  </ItemGroup>
+
+</Project>
