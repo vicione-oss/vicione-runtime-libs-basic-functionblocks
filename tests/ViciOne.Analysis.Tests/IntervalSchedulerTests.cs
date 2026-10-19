@@ -46,6 +46,19 @@ public class IntervalSchedulerTests
         }
 
         [Fact]
+        public void ReportsMissedIntervalsWhenFallingBehind()
+        {
+            var handler = new CountingIntervalElapsedHandler();
+            using var registration = _scheduler.Register(100, handler);
+
+            _time.Advance(350);
+            _scheduler.RunDueGroups();
+
+            handler.Count.Should().Be(1);
+            handler.MissedIntervals.Should().Be(2);
+        }
+
+        [Fact]
         public void TicksDifferentIntervalsIndependently()
         {
             var fast = new CountingIntervalElapsedHandler();

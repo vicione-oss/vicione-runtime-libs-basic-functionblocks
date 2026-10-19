@@ -171,6 +171,19 @@ public class IntervalStatisticTests
         }
 
         [Fact]
+        public void CountsTickOverwrittenWithoutEngineCycle()
+        {
+            Start(2.0);
+
+            _time.Advance(CompressionTime);
+            _scheduler.RunDueGroups();
+            _time.Advance(CompressionTime);
+            _scheduler.RunDueGroups();
+
+            GetRuntimeFunctionBlock().MissedIntervals.Should().Be(1);
+        }
+
+        [Fact]
         public void StopsReceivingIntervalsAfterDispose()
         {
             Start(2.0);

@@ -7,6 +7,11 @@ internal sealed class CountingIntervalElapsedHandler : IIntervalElapsedHandler
 {
     public int Count { get; private set; }
 
-    public void OnIntervalElapsed(long timestamp)
-        => Count++;
+    public long MissedIntervals { get; private set; }
+
+    public void OnIntervalElapsed(long timestamp, long missedIntervals)
+    {
+        Count++;
+        MissedIntervals += missedIntervals;
+    }
 }

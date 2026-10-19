@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using ViciOne.Core.Contracts.Runtime;
 
 namespace ViciOne.Analysis;
@@ -16,10 +17,14 @@ namespace ViciOne.Analysis;
 public partial class IntervalStatistic : IIntervalElapsedHandler
 {
     private const long NoIntervalElapsed = long.MinValue;
+    private const long NoWarningYet = long.MinValue;
+    private static readonly TimeSpan s_missedWarningInterval = TimeSpan.FromMinutes(1);
 
     private IntervalAccumulator? _accumulator;
     private bool _dataReceived;
     private long _elapsedTimestamp = NoIntervalElapsed;
+    private long _lastMissedWarning = NoWarningYet;
+    private long _missedIntervals;
     private bool _passThroughInputValueAsAverage = true;
     private IntervalRegistration? _registration;
 
@@ -43,6 +48,8 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
         base.Dispose(disposing);
     }
 
+    internal long MissedIntervals => Interlocked.Read(ref _missedIntervals);
+
     private void DisposeAccumulator()
     {
         // After unregistering, the scheduler no longer calls back; a tick still stored belongs to the old interval.
@@ -52,10 +59,26 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
         Interlocked.Exchange(ref _elapsedTimestamp, NoIntervalElapsed);
     }
 
-    void IIntervalElapsedHandler.OnIntervalElapsed(long timestamp)
+    void IIntervalElapsedHandler.OnIntervalElapsed(long timestamp, long missedIntervals)
     {
-        Interlocked.Exchange(ref _elapsedTimestamp, timestamp);
+        if (Interlocked.Exchange(ref _elapsedTimestamp, timestamp) != NoIntervalElapsed)
+            missedIntervals++;
+        if (missedIntervals > 0)
+            Interlocked.Add(ref _missedIntervals, missedIntervals);
         MarkAsChanged();
+    }
+
+    private void ReportMissedIntervals()
+    {
+        if (Interlocked.Read(ref _missedIntervals) == 0)
+            return;
+
+        var now = Scheduler.GetTimestamp();
+        if (_lastMissedWarning != NoWarningYet && Scheduler.TimeProvider.GetElapsedTime(_lastMissedWarning, now) < s_missedWarningInterval)
+            return;
+
+        _lastMissedWarning = now;
+        Logger.IntervalsMissed(Interlocked.Exchange(ref _missedIntervals, 0));
     }
 
     protected override void OnSettingChanged(IRuntimeSetting setting)
@@ -75,6 +98,7 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
             var result = _accumulator.Complete(elapsedTimestamp);
             if (FunctionBlockEnabled)
                 SetResultToOutputs(result);
+            ReportMissedIntervals();
         }
 
         if (FunctionBlockEnabled == false)

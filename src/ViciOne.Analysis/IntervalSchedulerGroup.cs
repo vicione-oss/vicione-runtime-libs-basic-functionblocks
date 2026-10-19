@@ -42,11 +42,12 @@ internal sealed class IntervalSchedulerGroup(long intervalMilliseconds, long per
 
     public void Tick(long now)
     {
+        var missedIntervals = (now - NextDue) / period;
         foreach (var member in _members)
         {
             try
             {
-                member.Handler.OnIntervalElapsed(now);
+                member.Handler.OnIntervalElapsed(now, missedIntervals);
             }
             catch (Exception)
             {
