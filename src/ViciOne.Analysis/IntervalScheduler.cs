@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.Loader;
 using System.Threading;
 
 namespace ViciOne.Analysis;
@@ -9,25 +10,43 @@ namespace ViciOne.Analysis;
 ///     Process-wide clock for all instances of <see cref="IntervalStatistic" />.
 /// </summary>
 /// <remarks>
-///     All instances with the same interval form a group and are ticked together. A single background thread sleeps
-///     until the next due time (no polling). Due times advance at a fixed rate so the intervals do not drift.
-///     Registering and unregistering are O(1).
+///     All instances with the same interval form a group and are ticked together. A single background thread per load
+///     context sleeps until the next due time (no polling). Due times advance at a fixed rate so the intervals do not
+///     drift. Registering and unregistering are O(1).
+///     The thread only runs while at least one group exists and ends when the load context of this assembly unloads.
 /// </remarks>
 internal sealed class IntervalScheduler
 {
+    private static readonly TimeSpan s_errorBackoff = TimeSpan.FromSeconds(1);
+
     private readonly List<IntervalSchedulerGroup> _dueGroups = [];
     private readonly Dictionary<long, IntervalSchedulerGroup> _groups = [];
     private readonly bool _runThread;
     // Deliberately not System.Threading.Lock: the worker uses Monitor.Wait to wait for new groups or the next due time.
     private readonly object _sync = new();
     private readonly bool _useStopwatch;
-    private bool _threadStarted;
+    private bool _threadRunning;
 
     public IntervalScheduler(TimeProvider timeProvider, bool runThread)
     {
         TimeProvider = timeProvider;
         _runThread = runThread;
         _useStopwatch = ReferenceEquals(timeProvider, TimeProvider.System);
+
+        if (runThread && AssemblyLoadContext.GetLoadContext(typeof(IntervalScheduler).Assembly) is { } loadContext)
+            loadContext.Unloading += _ => Clear();
+    }
+
+    /// <summary>
+    ///     Whether the background thread is currently running.
+    /// </summary>
+    internal bool IsThreadRunning
+    {
+        get
+        {
+            lock (_sync)
+                return _threadRunning;
+        }
     }
 
     public static IntervalScheduler Shared { get; } = new(TimeProvider.System, true);
@@ -97,10 +116,10 @@ internal sealed class IntervalScheduler
 
     private void StartThreadIfRequired()
     {
-        if (_runThread == false || _threadStarted)
+        if (_runThread == false || _threadRunning)
             return;
 
-        _threadStarted = true;
+        _threadRunning = true;
         var thread = new Thread(ThreadWorker)
         {
             IsBackground = true,
@@ -113,17 +132,30 @@ internal sealed class IntervalScheduler
     {
         lock (_sync)
         {
-            while (true)
+            try
             {
-                var nextDue = RunDueGroupsLocked();
-                if (nextDue == long.MaxValue)
-                    Monitor.Wait(_sync);
-                else
+                while (_groups.Count > 0)
                 {
-                    var remaining = TimeProvider.GetElapsedTime(GetTimestamp(), nextDue);
-                    if (remaining > TimeSpan.Zero)
-                        Monitor.Wait(_sync, remaining + TimeSpan.FromMilliseconds(1));
+                    try
+                    {
+                        var nextDue = RunDueGroupsLocked();
+                        if (nextDue == long.MaxValue)
+                            continue;
+
+                        var remaining = TimeProvider.GetElapsedTime(GetTimestamp(), nextDue);
+                        if (remaining > TimeSpan.Zero)
+                            Monitor.Wait(_sync, remaining + TimeSpan.FromMilliseconds(1));
+                    }
+                    catch (Exception exception)
+                    {
+                        Trace.TraceError($"{nameof(IntervalScheduler)}: {exception}");
+                        Monitor.Wait(_sync, s_errorBackoff);
+                    }
                 }
+            }
+            finally
+            {
+                _threadRunning = false;
             }
         }
     }
@@ -135,7 +167,22 @@ internal sealed class IntervalScheduler
             var group = registration.Group;
             group.Remove(registration);
             if (group.Count == 0 && _groups.TryGetValue(group.IntervalMilliseconds, out var current) && ReferenceEquals(current, group))
+            {
                 _groups.Remove(group.IntervalMilliseconds);
+                Monitor.PulseAll(_sync);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Drops all groups and lets the thread end. Used when the load context unloads.
+    /// </summary>
+    internal void Clear()
+    {
+        lock (_sync)
+        {
+            _groups.Clear();
+            Monitor.PulseAll(_sync);
         }
     }
 }

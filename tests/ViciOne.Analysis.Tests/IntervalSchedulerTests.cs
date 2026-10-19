@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 using AwesomeAssertions;
 using ViciOne.Analysis;
 using Xunit;
@@ -89,6 +92,81 @@ public class IntervalSchedulerTests
             registration.Dispose();
 
             _scheduler.RunDueGroups().Should().Be(long.MaxValue);
+        }
+    }
+
+    public class Worker
+    {
+        private static bool WaitUntil(Func<bool> condition)
+        {
+            var timeout = Stopwatch.StartNew();
+            while (timeout.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                if (condition())
+                    return true;
+                Thread.Sleep(10);
+            }
+
+            return condition();
+        }
+
+        [Fact]
+        public void EndsWhenLastRegistrationIsDisposed()
+        {
+            var scheduler = new IntervalScheduler(new ManualTimeProvider(), true);
+            var registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
+            scheduler.IsThreadRunning.Should().BeTrue();
+
+            registration.Dispose();
+
+            WaitUntil(() => scheduler.IsThreadRunning == false).Should().BeTrue();
+        }
+
+        [Fact]
+        public void StartsAgainOnNextRegister()
+        {
+            var scheduler = new IntervalScheduler(new ManualTimeProvider(), true);
+            scheduler.Register(60_000, new CountingIntervalElapsedHandler()).Dispose();
+            WaitUntil(() => scheduler.IsThreadRunning == false).Should().BeTrue();
+
+            using var registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
+
+            scheduler.IsThreadRunning.Should().BeTrue();
+        }
+
+        [Fact]
+        public void EndsWhenCleared()
+        {
+            var scheduler = new IntervalScheduler(new ManualTimeProvider(), true);
+            using var registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
+
+            scheduler.Clear();
+
+            WaitUntil(() => scheduler.IsThreadRunning == false).Should().BeTrue();
+        }
+
+        [Fact]
+        public void KeepsTickingAfterException()
+        {
+            var scheduler = new IntervalScheduler(new FailingOnceTimeProvider(), true);
+            var handler = new CountingIntervalElapsedHandler();
+            using var registration = scheduler.Register(10, handler);
+
+            WaitUntil(() => handler.Count > 0).Should().BeTrue();
+            scheduler.IsThreadRunning.Should().BeTrue();
+        }
+
+        /// <summary>
+        ///     Real time that throws on the first timestamp read by the worker (the second read overall).
+        /// </summary>
+        private sealed class FailingOnceTimeProvider : TimeProvider
+        {
+            private int _calls;
+
+            public override long GetTimestamp()
+                => Interlocked.Increment(ref _calls) == 2
+                    ? throw new InvalidOperationException("Simulated failure")
+                    : Stopwatch.GetTimestamp();
         }
     }
 }
