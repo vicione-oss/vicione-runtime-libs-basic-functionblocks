@@ -2,7 +2,7 @@
 using ViciOne.Analysis;
 
 /// <summary>
-///     Throws on every elapsed interval.
+/// Throws on every elapsed interval.
 /// </summary>
 internal sealed class ThrowingIntervalElapsedHandler : IIntervalElapsedHandler
 {

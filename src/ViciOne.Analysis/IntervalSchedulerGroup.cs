@@ -5,10 +5,10 @@ using System.Diagnostics;
 namespace ViciOne.Analysis;
 
 /// <summary>
-///     All registrations of an <see cref="IntervalScheduler" /> that share the same interval.
+/// All registrations of an <see cref="IntervalScheduler" /> that share the same interval.
 /// </summary>
 /// <remarks>
-///     Not thread-safe; all members are accessed under the lock of the owning scheduler.
+/// Not thread-safe; all members are accessed under the lock of the owning scheduler.
 /// </remarks>
 internal sealed class IntervalSchedulerGroup(long intervalMilliseconds, long period, long startTimestamp)
 {
@@ -25,16 +25,16 @@ internal sealed class IntervalSchedulerGroup(long intervalMilliseconds, long per
     }
 
     /// <summary>
-    ///     Removes the registration in O(1) by moving the last member into its slot.
+    /// Removes the registration in O(1) by moving the last member into its slot.
     /// </summary>
     public void Remove(IntervalRegistration registration)
     {
-        var index = registration.Index;
+        int index = registration.Index;
         if (index < 0)
             return;
 
-        var lastIndex = _members.Count - 1;
-        var last = _members[lastIndex];
+        int lastIndex = _members.Count - 1;
+        IntervalRegistration last = _members[lastIndex];
         _members[index] = last;
         last.Index = index;
         _members.RemoveAt(lastIndex);
@@ -43,8 +43,8 @@ internal sealed class IntervalSchedulerGroup(long intervalMilliseconds, long per
 
     public void Tick(long now)
     {
-        var missedIntervals = (now - NextDue) / period;
-        foreach (var member in _members)
+        long missedIntervals = (now - NextDue) / period;
+        foreach (IntervalRegistration member in _members)
         {
             try
             {

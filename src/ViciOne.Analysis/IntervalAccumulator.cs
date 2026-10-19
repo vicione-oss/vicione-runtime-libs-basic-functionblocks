@@ -3,13 +3,13 @@
 namespace ViciOne.Analysis;
 
 /// <summary>
-///     Aggregates the values of an interval incrementally in O(1) per value and without allocations.
+/// Aggregates the values of an interval incrementally in O(1) per value and without allocations.
 /// </summary>
 /// <remarks>
-///     Instead of storing every value in a list and evaluating it at the end of the interval, only the figures
-///     (minimum, maximum, sum, time-weighted sum, first/second-to-last/last value) are kept up to date.
-///     Not thread-safe: <see cref="Add" /> and <see cref="Complete" /> are called on the engine thread only.
-///     Timestamps come from <see cref="IntervalScheduler.GetTimestamp" />.
+/// Instead of storing every value in a list and evaluating it at the end of the interval, only the figures
+/// (minimum, maximum, sum, time-weighted sum, first/second-to-last/last value) are kept up to date.
+/// Not thread-safe: <see cref="Add" /> and <see cref="Complete" /> are called on the engine thread only.
+/// Timestamps come from <see cref="IntervalScheduler.GetTimestamp" />.
 /// </remarks>
 internal sealed class IntervalAccumulator
 {
@@ -35,7 +35,7 @@ internal sealed class IntervalAccumulator
     }
 
     /// <summary>
-    ///     Records a new value. The previous value is weighted by the time it was present.
+    /// Records a new value. The previous value is weighted by the time it was present.
     /// </summary>
     public void Add(double value, long timestamp)
     {
@@ -62,8 +62,8 @@ internal sealed class IntervalAccumulator
 
     private IntervalResult Calculate(long timestamp)
     {
-        var duration = timestamp - _intervalStart;
-        var average = _count == 1 || duration <= 0
+        long duration = timestamp - _intervalStart;
+        double average = _count == 1 || duration <= 0
             ? _last
             : Math.Clamp((_weightedSum + (_last * (timestamp - _entryStart))) / duration, _minimum, _maximum);
 
@@ -73,22 +73,22 @@ internal sealed class IntervalAccumulator
         else
             difference = _first - _last;
 
-        return new IntervalResult(average, _minimum, _maximum, _sum, difference, _last);
+        return new IntervalResult(average, _minimum, _maximum, _sum, difference);
     }
 
     /// <summary>
-    ///     Completes the running interval at the given time and starts the next one with the last value.
+    /// Completes the running interval at the given time and starts the next one with the last value.
     /// </summary>
     /// <remarks>
-    ///     Completion happens in the first engine cycle after the tick. If a value was recorded in between, its timestamp
-    ///     lies after the tick; the interval is then completed at the time of that value.
+    /// Completion happens in the first engine cycle after the tick. If a value was recorded in between, its timestamp
+    /// lies after the tick; the interval is then completed at the time of that value.
     /// </remarks>
     public IntervalResult Complete(long timestamp)
     {
         if (timestamp < _entryStart)
             timestamp = _entryStart;
 
-        var result = Calculate(timestamp);
+        IntervalResult result = Calculate(timestamp);
         if (_count > 1)
             _firstDifference = false;
         StartInterval(_last, timestamp);

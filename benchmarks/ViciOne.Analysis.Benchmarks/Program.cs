@@ -23,43 +23,43 @@ using ViciOne.Engine;
 
 // IntervalStatistic blocks in real RuntimeEngines. Every block's six outputs are linked to the inputs of three Add blocks.
 // Usage: ViciOne.Analysis.Benchmarks [engines=4] [blocksPerEngine=1250] [compressionMs=10000] [changesPerSecond=1] [cycleMs=10] [seconds=60] [warmupSeconds=15]
-var options = BenchmarkOptions.Parse(args);
+BenchmarkOptions options = BenchmarkOptions.Parse(args);
 Console.WriteLine(options);
 
-var designAssemblies = new[] { typeof(IntervalStatistic).Assembly, typeof(ViciOne.Math.Add).Assembly };
-var relevant = AssemblyLoader.CreateRelevantAssemblies(typeof(IntervalStatistic).Assembly);
-var assemblies = designAssemblies.Concat(relevant.AdditionalAssemblies).Distinct().ToArray();
-var designs = FunctionBlockDesignGenerator.GenerateFunctionBlockDesigns(
+Assembly[] designAssemblies = [ typeof(IntervalStatistic).Assembly, typeof(ViciOne.Math.Add).Assembly];
+RelevantAssemblies relevant = AssemblyLoader.CreateRelevantAssemblies(typeof(IntervalStatistic).Assembly);
+Assembly[] assemblies = designAssemblies.Concat(relevant.AdditionalAssemblies).Distinct().ToArray();
+List<FunctionBlockDesign> designs = FunctionBlockDesignGenerator.GenerateFunctionBlockDesigns(
     RuntimeFunctionBlockAssemblyAnalyzer.GetFunctionBlockDesigns(designAssemblies), new PoolingFactory(relevant.AdditionalAssemblies)).ToList();
-var statisticDesign = designs.Single(d => d.Name == nameof(IntervalStatistic));
-var addDesign = designs.Single(d => d.Name == nameof(ViciOne.Math.Add));
+FunctionBlockDesign statisticDesign = designs.Single(d => d.Name == nameof(IntervalStatistic));
+FunctionBlockDesign addDesign = designs.Single(d => d.Name == nameof(ViciOne.Math.Add));
 
-var setup = Stopwatch.StartNew();
-var engines = Enumerable.Range(0, options.Engines).Select(_ => EngineUnderTest.Create(statisticDesign, addDesign, options, assemblies)).ToList();
+Stopwatch setup = Stopwatch.StartNew();
+List<EngineUnderTest> engines = Enumerable.Range(0, options.Engines).Select(_ => EngineUnderTest.Create(statisticDesign, addDesign, options, assemblies)).ToList();
 Console.WriteLine($"setup: {setup.Elapsed.TotalSeconds:F1} s for {engines.Count * options.BlocksPerEngine * 4} function blocks");
 
-var process = Process.GetCurrentProcess();
-var threads = engines.Select(e => new Thread(() => e.Run(options)) { Name = "engine", IsBackground = true }).ToList();
+Process process = Process.GetCurrentProcess();
+List<Thread> threads = engines.Select(e => new Thread(() => e.Run(options)) { Name = "engine", IsBackground = true }).ToList();
 threads.ForEach(t => t.Start());
 
 Thread.Sleep(TimeSpan.FromSeconds(options.WarmupSeconds));
 GC.Collect();
 process.Refresh();
-var cpu0 = process.TotalProcessorTime;
-var alloc0 = GC.GetTotalAllocatedBytes();
-var gc0 = (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
-var pause0 = GC.GetTotalPauseDuration();
+TimeSpan cpu0 = process.TotalProcessorTime;
+long alloc0 = GC.GetTotalAllocatedBytes();
+(int, int, int) gc0 = (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
+TimeSpan pause0 = GC.GetTotalPauseDuration();
 engines.ForEach(e => e.StartMeasuring());
-var wall = Stopwatch.StartNew();
+Stopwatch wall = Stopwatch.StartNew();
 
 Thread.Sleep(TimeSpan.FromSeconds(options.Seconds));
 engines.ForEach(e => e.Stop());
 threads.ForEach(t => t.Join());
 process.Refresh();
 
-var cycles = engines.SelectMany(e => e.CycleMilliseconds).Order().ToArray();
+double[] cycles = engines.SelectMany(e => e.CycleMilliseconds).Order().ToArray();
 double Percentile(double p) => cycles.Length == 0 ? 0 : cycles[Math.Min(cycles.Length - 1, (int)(p * cycles.Length))];
-var cpu = (process.TotalProcessorTime - cpu0).TotalMilliseconds;
+double cpu = (process.TotalProcessorTime - cpu0).TotalMilliseconds;
 Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
     $"""
     CPU:            {cpu / wall.Elapsed.TotalMilliseconds * 100:F1} % of one core
@@ -108,45 +108,45 @@ namespace ViciOne.Analysis.Benchmarks
         [SuppressMessage("Maintainability", "CA1506:Avoid excessive class coupling", Justification = "Builds a complete dataflow and engine in one place.")]
         public static EngineUnderTest Create(FunctionBlockDesign statisticDesign, FunctionBlockDesign addDesign, BenchmarkOptions options, IEnumerable<Assembly> assemblies)
         {
-            using var editor = new DataflowEditor();
+            using DataflowEditor editor = new();
             editor.AddFunctionBlockDesign(statisticDesign);
             editor.AddFunctionBlockDesign(addDesign);
-            var incomingLinkIds = new Guid[options.BlocksPerEngine];
+            Guid[] incomingLinkIds = new Guid[options.BlocksPerEngine];
 
-            for (var i = 0; i < options.BlocksPerEngine; i++)
+            for (int i = 0; i < options.BlocksPerEngine; i++)
             {
-                var statistic = new FunctionBlockEditor(statisticDesign);
+                FunctionBlockEditor statistic = new(statisticDesign);
                 statistic.SetName($"Statistic{i}");
                 editor.RootContainerEditor.AddFunctionBlock(statistic);
-                var setting = statistic.FunctionBlock.Settings.Single(s => s.Design.Name == nameof(IntervalStatistic.Settings.CompressionTime));
+                ISetting setting = statistic.FunctionBlock.Settings.Single(s => s.Design.Name == nameof(IntervalStatistic.Settings.CompressionTime));
                 setting.Value = options.CompressionMs;
 
-                var input = (ConnectorInput<double>)statistic.FunctionBlock.GetInputs().Single(c => c.Design.Name == nameof(IntervalStatistic.ProcessDataInputs.Value));
-                var incoming = new ExternalIncomingLinkEditor<double, double, double>(input).Link;
+                ConnectorInput<double> input = (ConnectorInput<double>)statistic.FunctionBlock.GetInputs().Single(c => c.Design.Name == nameof(IntervalStatistic.ProcessDataInputs.Value));
+                ExternalIncomingLink<double, double, double> incoming = new ExternalIncomingLinkEditor<double, double, double>(input).Link;
                 editor.AddExternalIncomingLink(incoming);
                 incomingLinkIds[i] = incoming.Id;
 
-                var outputs = statistic.FunctionBlock.GetOutputs().OfType<ConnectorOutput<double>>().OrderBy(c => c.Design.Name, StringComparer.Ordinal).ToList();
-                for (var a = 0; a < 3; a++)
+                List<ConnectorOutput<double>> outputs = statistic.FunctionBlock.GetOutputs().OfType<ConnectorOutput<double>>().OrderBy(c => c.Design.Name, StringComparer.Ordinal).ToList();
+                for (int a = 0; a < 3; a++)
                 {
-                    var add = new FunctionBlockEditor(addDesign);
+                    FunctionBlockEditor add = new(addDesign);
                     add.SetName($"Add{i}_{a}");
                     add.SetRunMode(RunMode.Change);
                     editor.RootContainerEditor.AddFunctionBlock(add);
-                    var addInputs = add.FunctionBlock.GetInputs().OfType<ConnectorInput<double>>().OrderBy(c => c.Design.Name, StringComparer.Ordinal).ToList();
-                    for (var k = 0; k < 2; k++)
+                    List<ConnectorInput<double>> addInputs = add.FunctionBlock.GetInputs().OfType<ConnectorInput<double>>().OrderBy(c => c.Design.Name, StringComparer.Ordinal).ToList();
+                    for (int k = 0; k < 2; k++)
                     {
-                        var source = outputs[(a * 2) + k];
+                        ConnectorOutput<double> source = outputs[(a * 2) + k];
                         editor.AddInternalLink(new InternalLinkEditor<double, double>(source, addInputs[k]).Link);
                     }
                 }
             }
 
-            var communication = new InputCommunication();
-            var names = new DefaultUniqueNameProvider(NameGenerator.CreateUniqueNames(editor.Dataflow));
-            var engine = new RuntimeEngine(editor.Dataflow, NullLoggerFactory.Instance, assemblies, assemblies, names, communicationManager: communication);
+            InputCommunication communication = new();
+            DefaultUniqueNameProvider names = new(NameGenerator.CreateUniqueNames(editor.Dataflow));
+            RuntimeEngine engine = new(editor.Dataflow, NullLoggerFactory.Instance, assemblies, assemblies, names, communicationManager: communication);
             engine.Start();
-            var result = new EngineUnderTest(engine, communication, incomingLinkIds);
+            EngineUnderTest result = new(engine, communication, incomingLinkIds);
             result._statistics = [.. GetRuntimeFunctionBlocks(engine).OfType<IntervalStatistic>()];
             result._lastSums = new double[result._statistics.Length];
             return result;
@@ -154,28 +154,28 @@ namespace ViciOne.Analysis.Benchmarks
 
         public void Run(BenchmarkOptions options)
         {
-            var cyclesPerChange = System.Math.Max(1, 1000 / options.CycleMs / options.ChangesPerSecond);
-            var clock = Stopwatch.StartNew();
-            var entries = new List<ChangedEntry>();
+            int cyclesPerChange = System.Math.Max(1, 1000 / options.CycleMs / options.ChangesPerSecond);
+            Stopwatch clock = Stopwatch.StartNew();
+            List<ChangedEntry> entries = [];
             for (long cycle = 0; _stopped == false; cycle++)
             {
                 entries.Clear();
-                for (var i = (int)(cycle % cyclesPerChange); i < _incomingLinkIds.Length; i += cyclesPerChange)
+                for (int i = (int)(cycle % cyclesPerChange); i < _incomingLinkIds.Length; i += cyclesPerChange)
                     entries.Add(new ChangedEntry { Id = _incomingLinkIds[i], Time = DateTime.UtcNow, Validity = Validity.Valid, Value = ((cycle * 7919) + (i * 104729)) % 10000 / 100.0 });
                 if (entries.Count > 0)
                     _communication.Raise(entries.ToArray());
 
-                var start = Stopwatch.GetTimestamp();
+                long start = Stopwatch.GetTimestamp();
                 _engine.ProcessCycle();
-                var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+                double elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
                 if (_measuring)
                 {
                     CycleMilliseconds.Add(elapsed);
                     Completions += CountCompletions();
                 }
 
-                var next = (cycle + 1) * options.CycleMs;
-                var wait = next - clock.ElapsedMilliseconds;
+                long next = (cycle + 1) * options.CycleMs;
+                long wait = next - clock.ElapsedMilliseconds;
                 if (wait > 0)
                     Thread.Sleep((int)wait);
             }
@@ -183,10 +183,10 @@ namespace ViciOne.Analysis.Benchmarks
 
         private int CountCompletions()
         {
-            var count = 0;
-            for (var i = 0; i < _statistics.Length; i++)
+            int count = 0;
+            for (int i = 0; i < _statistics.Length; i++)
             {
-                var sum = _statistics[i].ProcessDataOutputs.Sum.Value;
+                double sum = _statistics[i].ProcessDataOutputs.Sum.Value;
                 if (sum != _lastSums[i])
                 {
                     _lastSums[i] = sum;

@@ -1,7 +1,7 @@
 ﻿using System;
 
 /// <summary>
-///     Time provider with a millisecond timestamp that only moves when <see cref="Advance" /> is called.
+/// Time provider with a millisecond timestamp that only moves when <see cref="Advance" /> is called.
 /// </summary>
 internal sealed class ManualTimeProvider : TimeProvider
 {

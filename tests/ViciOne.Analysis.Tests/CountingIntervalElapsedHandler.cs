@@ -1,7 +1,7 @@
 ﻿using ViciOne.Analysis;
 
 /// <summary>
-///     Counts how often an interval has elapsed.
+/// Counts how often an interval has elapsed.
 /// </summary>
 internal sealed class CountingIntervalElapsedHandler : IIntervalElapsedHandler
 {

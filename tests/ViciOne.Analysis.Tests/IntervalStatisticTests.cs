@@ -19,7 +19,6 @@ public class IntervalStatisticTests
             ChangeSettingValue(nameof(IntervalStatistic.Settings.CompressionTime), CompressionTime);
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), initialValue);
             StartEngine();
-            GetRuntimeFunctionBlock().Scheduler = _scheduler;
             ProcessCycle();
         }
 
@@ -33,12 +32,26 @@ public class IntervalStatisticTests
         private double Output(string name)
             => GetOutputValue<double>(name);
 
+        protected override void StartEngine()
+        {
+            IntervalStatistic.SchedulerOverride = _scheduler;
+            try
+            {
+                base.StartEngine();
+            }
+            finally
+            {
+                IntervalStatistic.SchedulerOverride = null;
+            }
+
+            GetRuntimeFunctionBlock().Scheduler.Should().BeSameAs(_scheduler);
+        }
+
         [Fact]
         public void DoesNotRegisterIfInputWasNotChanged()
         {
             ChangeSettingValue(nameof(IntervalStatistic.Settings.CompressionTime), CompressionTime);
             StartEngine();
-            GetRuntimeFunctionBlock().Scheduler = _scheduler;
             ProcessCycle();
 
             CompleteInterval();
@@ -136,7 +149,7 @@ public class IntervalStatisticTests
             CompleteInterval();
 
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Last)).Should().Be(5.0);
-            // The change while disabled is not aggregated, as before
+            // Changes while the block is disabled are not aggregated
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Maximum)).Should().Be(2.0);
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Average)).Should().Be(2.0);
         }
@@ -187,7 +200,7 @@ public class IntervalStatisticTests
         public void StopsReceivingIntervalsAfterDispose()
         {
             Start(2.0);
-            var block = GetRuntimeFunctionBlock();
+            IntervalStatistic block = GetRuntimeFunctionBlock();
 
             block.Dispose();
 

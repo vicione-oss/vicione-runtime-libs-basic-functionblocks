@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using AwesomeAssertions;
 using ViciOne.Analysis;
 using Xunit;
@@ -19,8 +20,8 @@ public class IntervalSchedulerTests
         [Fact]
         public void TicksGroupOnlyWhenDue()
         {
-            var handler = new CountingIntervalElapsedHandler();
-            using var registration = _scheduler.Register(100, handler);
+            CountingIntervalElapsedHandler handler = new();
+            using IntervalRegistration registration = _scheduler.Register(100, handler);
 
             _time.Advance(99);
             _scheduler.RunDueGroups();
@@ -34,8 +35,8 @@ public class IntervalSchedulerTests
         [Fact]
         public void KeepsFixedRateWithoutDrift()
         {
-            var handler = new CountingIntervalElapsedHandler();
-            using var registration = _scheduler.Register(100, handler);
+            CountingIntervalElapsedHandler handler = new();
+            using IntervalRegistration registration = _scheduler.Register(100, handler);
 
             _time.Advance(130);
             _scheduler.RunDueGroups();
@@ -48,11 +49,11 @@ public class IntervalSchedulerTests
         [Fact]
         public void TicksRemainingMembersIfHandlerThrows()
         {
-            var handler = new CountingIntervalElapsedHandler();
-            using var failing = _scheduler.Register(100, new ThrowingIntervalElapsedHandler());
-            using var registration = _scheduler.Register(100, handler);
+            CountingIntervalElapsedHandler handler = new();
+            using IntervalRegistration failing = _scheduler.Register(100, new ThrowingIntervalElapsedHandler());
+            using IntervalRegistration registration = _scheduler.Register(100, handler);
 
-            for (var i = 0; i < 2; i++)
+            for (int i = 0; i < 2; i++)
             {
                 _time.Advance(100);
                 _scheduler.RunDueGroups();
@@ -63,10 +64,33 @@ public class IntervalSchedulerTests
         }
 
         [Fact]
+        public void RephasesAfterStall()
+        {
+            using IntervalRegistration registration = _scheduler.Register(100, new CountingIntervalElapsedHandler());
+
+            _time.Advance(350);
+
+            _scheduler.RunDueGroups().Should().Be(_time.GetTimestamp() + 100);
+        }
+
+        [Fact]
+        public void TicksAgainAfterGroupWasRemovedAndRegisteredAgain()
+        {
+            _scheduler.Register(100, new CountingIntervalElapsedHandler()).Dispose();
+            CountingIntervalElapsedHandler handler = new();
+            using IntervalRegistration registration = _scheduler.Register(100, handler);
+
+            _time.Advance(100);
+            _scheduler.RunDueGroups();
+
+            handler.Count.Should().Be(1);
+        }
+
+        [Fact]
         public void ReportsMissedIntervalsWhenFallingBehind()
         {
-            var handler = new CountingIntervalElapsedHandler();
-            using var registration = _scheduler.Register(100, handler);
+            CountingIntervalElapsedHandler handler = new();
+            using IntervalRegistration registration = _scheduler.Register(100, handler);
 
             _time.Advance(350);
             _scheduler.RunDueGroups();
@@ -78,12 +102,12 @@ public class IntervalSchedulerTests
         [Fact]
         public void TicksDifferentIntervalsIndependently()
         {
-            var fast = new CountingIntervalElapsedHandler();
-            var slow = new CountingIntervalElapsedHandler();
-            using var fastRegistration = _scheduler.Register(100, fast);
-            using var slowRegistration = _scheduler.Register(300, slow);
+            CountingIntervalElapsedHandler fast = new();
+            CountingIntervalElapsedHandler slow = new();
+            using IntervalRegistration fastRegistration = _scheduler.Register(100, fast);
+            using IntervalRegistration slowRegistration = _scheduler.Register(300, slow);
 
-            for (var i = 0; i < 3; i++)
+            for (int i = 0; i < 3; i++)
             {
                 _time.Advance(100);
                 _scheduler.RunDueGroups();
@@ -96,11 +120,11 @@ public class IntervalSchedulerTests
         [Fact]
         public void KeepsRemainingMembersAfterUnregister()
         {
-            var handlers = new List<CountingIntervalElapsedHandler>();
-            var registrations = new List<IntervalRegistration>();
-            for (var i = 0; i < 5; i++)
+            List<CountingIntervalElapsedHandler> handlers = [];
+            List<IntervalRegistration> registrations = [];
+            for (int i = 0; i < 5; i++)
             {
-                var handler = new CountingIntervalElapsedHandler();
+                CountingIntervalElapsedHandler handler = new();
                 handlers.Add(handler);
                 registrations.Add(_scheduler.Register(100, handler));
             }
@@ -117,7 +141,7 @@ public class IntervalSchedulerTests
         [Fact]
         public void RemovesEmptyGroup()
         {
-            var registration = _scheduler.Register(100, new CountingIntervalElapsedHandler());
+            IntervalRegistration registration = _scheduler.Register(100, new CountingIntervalElapsedHandler());
 
             registration.Dispose();
 
@@ -129,7 +153,7 @@ public class IntervalSchedulerTests
     {
         private static bool WaitUntil(Func<bool> condition)
         {
-            var timeout = Stopwatch.StartNew();
+            Stopwatch timeout = Stopwatch.StartNew();
             while (timeout.Elapsed < TimeSpan.FromSeconds(5))
             {
                 if (condition())
@@ -143,8 +167,8 @@ public class IntervalSchedulerTests
         [Fact]
         public void EndsWhenLastRegistrationIsDisposed()
         {
-            var scheduler = new IntervalScheduler(new ManualTimeProvider(), true);
-            var registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
+            IntervalScheduler scheduler = new(new ManualTimeProvider(), true);
+            IntervalRegistration registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
             scheduler.IsThreadRunning.Should().BeTrue();
 
             registration.Dispose();
@@ -155,11 +179,11 @@ public class IntervalSchedulerTests
         [Fact]
         public void StartsAgainOnNextRegister()
         {
-            var scheduler = new IntervalScheduler(new ManualTimeProvider(), true);
+            IntervalScheduler scheduler = new(new ManualTimeProvider(), true);
             scheduler.Register(60_000, new CountingIntervalElapsedHandler()).Dispose();
             WaitUntil(() => scheduler.IsThreadRunning == false).Should().BeTrue();
 
-            using var registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
+            using IntervalRegistration registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
 
             scheduler.IsThreadRunning.Should().BeTrue();
         }
@@ -167,8 +191,8 @@ public class IntervalSchedulerTests
         [Fact]
         public void EndsWhenCleared()
         {
-            var scheduler = new IntervalScheduler(new ManualTimeProvider(), true);
-            using var registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
+            IntervalScheduler scheduler = new(new ManualTimeProvider(), true);
+            using IntervalRegistration registration = scheduler.Register(60_000, new CountingIntervalElapsedHandler());
 
             scheduler.Clear();
 
@@ -176,18 +200,37 @@ public class IntervalSchedulerTests
         }
 
         [Fact]
+        public void TicksWithSystemTimeWhileRegistrationsChangeConcurrently()
+        {
+            IntervalScheduler scheduler = new(TimeProvider.System, true);
+            CountingIntervalElapsedHandler steady = new();
+            IntervalRegistration steadyRegistration = scheduler.Register(10, steady);
+
+            Parallel.For(0, 8, worker =>
+            {
+                for (int i = 0; i < 200; i++)
+                    scheduler.Register(1 + ((worker + i) % 5), new CountingIntervalElapsedHandler()).Dispose();
+            });
+
+            WaitUntil(() => steady.Count >= 3).Should().BeTrue();
+            steadyRegistration.Dispose();
+            WaitUntil(() => scheduler.IsThreadRunning == false).Should().BeTrue();
+            scheduler.RunDueGroups().Should().Be(long.MaxValue);
+        }
+
+        [Fact]
         public void KeepsTickingAfterException()
         {
-            var scheduler = new IntervalScheduler(new FailingOnceTimeProvider(), true);
-            var handler = new CountingIntervalElapsedHandler();
-            using var registration = scheduler.Register(10, handler);
+            IntervalScheduler scheduler = new(new FailingOnceTimeProvider(), true);
+            CountingIntervalElapsedHandler handler = new();
+            using IntervalRegistration registration = scheduler.Register(10, handler);
 
             WaitUntil(() => handler.Count > 0).Should().BeTrue();
             scheduler.IsThreadRunning.Should().BeTrue();
         }
 
         /// <summary>
-        ///     Real time that throws on the first timestamp read by the worker (the second read overall).
+        /// Real time that throws on the first timestamp read by the worker (the second read overall).
         /// </summary>
         private sealed class FailingOnceTimeProvider : TimeProvider
         {

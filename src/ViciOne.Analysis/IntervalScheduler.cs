@@ -7,13 +7,13 @@ using System.Threading;
 namespace ViciOne.Analysis;
 
 /// <summary>
-///     Process-wide clock for all instances of <see cref="IntervalStatistic" />.
+/// Process-wide clock for all instances of <see cref="IntervalStatistic" />.
 /// </summary>
 /// <remarks>
-///     All instances with the same interval form a group and are ticked together. A single background thread per load
-///     context sleeps until the next due time (no polling). Due times advance at a fixed rate so the intervals do not
-///     drift. Registering and unregistering are O(1).
-///     The thread only runs while at least one group exists and ends when the load context of this assembly unloads.
+/// All instances with the same interval form a group and are ticked together. A single background thread per load
+/// context sleeps until the next due time (no polling). Due times advance at a fixed rate so the intervals do not
+/// drift. Registering and unregistering are O(1).
+/// The thread only runs while at least one group exists and ends when the load context of this assembly unloads.
 /// </remarks>
 internal sealed class IntervalScheduler
 {
@@ -27,18 +27,8 @@ internal sealed class IntervalScheduler
     private readonly bool _useStopwatch;
     private bool _threadRunning;
 
-    public IntervalScheduler(TimeProvider timeProvider, bool runThread)
-    {
-        TimeProvider = timeProvider;
-        _runThread = runThread;
-        _useStopwatch = ReferenceEquals(timeProvider, TimeProvider.System);
-
-        if (runThread && AssemblyLoadContext.GetLoadContext(typeof(IntervalScheduler).Assembly) is { } loadContext)
-            loadContext.Unloading += _ => Clear();
-    }
-
     /// <summary>
-    ///     Whether the background thread is currently running.
+    /// Whether the background thread is currently running.
     /// </summary>
     internal bool IsThreadRunning
     {
@@ -53,8 +43,18 @@ internal sealed class IntervalScheduler
 
     public TimeProvider TimeProvider { get; }
 
+    public IntervalScheduler(TimeProvider timeProvider, bool runThread)
+    {
+        TimeProvider = timeProvider;
+        _runThread = runThread;
+        _useStopwatch = ReferenceEquals(timeProvider, TimeProvider.System);
+
+        if (runThread && AssemblyLoadContext.GetLoadContext(typeof(IntervalScheduler).Assembly) is { } loadContext)
+            loadContext.Unloading += _ => Clear();
+    }
+
     /// <summary>
-    ///     Drops all groups and lets the thread end. Used when the load context unloads.
+    /// Drops all groups and lets the thread end. Used when the load context unloads.
     /// </summary>
     internal void Clear()
     {
@@ -66,8 +66,8 @@ internal sealed class IntervalScheduler
     }
 
     /// <summary>
-    ///     Current timestamp. In production it is read directly from <see cref="Stopwatch" />, because the virtual call
-    ///     through <see cref="TimeProvider" /> on every value change is measurable on small ARM devices.
+    /// Current timestamp. In production it is read directly from <see cref="Stopwatch" />, because the virtual call
+    /// through <see cref="TimeProvider" /> on every value change is measurable on small ARM devices.
     /// </summary>
     public long GetTimestamp()
         => _useStopwatch ? Stopwatch.GetTimestamp() : TimeProvider.GetTimestamp();
@@ -79,9 +79,9 @@ internal sealed class IntervalScheduler
 
         lock (_sync)
         {
-            if (_groups.TryGetValue(intervalMilliseconds, out var group) == false)
+            if (_groups.TryGetValue(intervalMilliseconds, out IntervalSchedulerGroup? group) == false)
             {
-                var period = intervalMilliseconds * TimeProvider.TimestampFrequency / 1000;
+                long period = intervalMilliseconds * TimeProvider.TimestampFrequency / 1000;
                 group = new IntervalSchedulerGroup(intervalMilliseconds, Math.Max(1, period), GetTimestamp());
                 _groups.Add(intervalMilliseconds, group);
                 StartThreadIfRequired();
@@ -95,7 +95,7 @@ internal sealed class IntervalScheduler
     }
 
     /// <summary>
-    ///     Ticks all due groups and returns the next due time (<see cref="long.MaxValue" /> if there is none).
+    /// Ticks all due groups and returns the next due time (<see cref="long.MaxValue" /> if there is none).
     /// </summary>
     internal long RunDueGroups()
     {
@@ -105,10 +105,10 @@ internal sealed class IntervalScheduler
 
     private long RunDueGroupsLocked()
     {
-        var now = GetTimestamp();
-        var nextDue = long.MaxValue;
+        long now = GetTimestamp();
+        long nextDue = long.MaxValue;
         _dueGroups.Clear();
-        foreach (var group in _groups.Values)
+        foreach (IntervalSchedulerGroup group in _groups.Values)
         {
             if (group.NextDue <= now)
                 _dueGroups.Add(group);
@@ -116,7 +116,7 @@ internal sealed class IntervalScheduler
                 nextDue = Math.Min(nextDue, group.NextDue);
         }
 
-        foreach (var group in _dueGroups)
+        foreach (IntervalSchedulerGroup group in _dueGroups)
         {
             group.Tick(now);
             nextDue = Math.Min(nextDue, group.NextDue);
@@ -150,11 +150,11 @@ internal sealed class IntervalScheduler
                 {
                     try
                     {
-                        var nextDue = RunDueGroupsLocked();
+                        long nextDue = RunDueGroupsLocked();
                         if (nextDue == long.MaxValue)
                             continue;
 
-                        var remaining = TimeProvider.GetElapsedTime(GetTimestamp(), nextDue);
+                        TimeSpan remaining = TimeProvider.GetElapsedTime(GetTimestamp(), nextDue);
                         if (remaining > TimeSpan.Zero)
                             Monitor.Wait(_sync, remaining + TimeSpan.FromMilliseconds(1));
                     }
@@ -176,9 +176,9 @@ internal sealed class IntervalScheduler
     {
         lock (_sync)
         {
-            var group = registration.Group;
+            IntervalSchedulerGroup group = registration.Group;
             group.Remove(registration);
-            if (group.Count == 0 && _groups.TryGetValue(group.IntervalMilliseconds, out var current) && ReferenceEquals(current, group))
+            if (group.Count == 0 && _groups.TryGetValue(group.IntervalMilliseconds, out IntervalSchedulerGroup? current) && ReferenceEquals(current, group))
             {
                 _groups.Remove(group.IntervalMilliseconds);
                 Monitor.PulseAll(_sync);

@@ -5,20 +5,21 @@ using ViciOne.Core.Contracts.Runtime;
 namespace ViciOne.Analysis;
 
 /// <summary>
-///     Aggregates the input value over a fixed interval (<c>CompressionTime</c>) into a time-weighted average, minimum,
-///     maximum, sum and difference.
+/// Aggregates the input value over a fixed interval (<c>CompressionTime</c>) into a time-weighted average, minimum,
+/// maximum, sum and difference.
 /// </summary>
 /// <remarks>
-///     The block runs in RunMode <c>Change</c>. Value changes are aggregated incrementally in <see cref="ProcessCycle" />.
-///     The end of an interval is signalled by the process-wide <see cref="IntervalScheduler" />: it only stores the
-///     timestamp and marks the block as changed. Completion and outputs follow in the next engine cycle on the engine
-///     thread, so the aggregation needs no locks.
+/// The block runs in RunMode <c>Change</c>. Value changes are aggregated incrementally in <see cref="ProcessCycle" />.
+/// The end of an interval is signalled by the process-wide <see cref="IntervalScheduler" />: it only stores the
+/// timestamp and marks the block as changed. Completion and outputs follow in the next engine cycle on the engine
+/// thread, so the aggregation needs no locks.
 /// </remarks>
 public partial class IntervalStatistic : IIntervalElapsedHandler
 {
     private const long NoIntervalElapsed = long.MinValue;
     private const long NoWarningYet = long.MinValue;
     private static readonly TimeSpan s_missedWarningInterval = TimeSpan.FromMinutes(1);
+    private static readonly AsyncLocal<IntervalScheduler?> s_schedulerOverride = new();
 
     private IntervalAccumulator? _accumulator;
     private bool _dataReceived;
@@ -30,7 +31,16 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
 
     internal long MissedIntervals => Interlocked.Read(ref _missedIntervals);
 
-    internal IntervalScheduler Scheduler { get; set; } = IntervalScheduler.Shared;
+    internal IntervalScheduler Scheduler { get; } = s_schedulerOverride.Value ?? IntervalScheduler.Shared;
+
+    /// <summary>
+    /// Scheduler used by blocks created in the current async flow instead of <see cref="IntervalScheduler.Shared" />.
+    /// </summary>
+    internal static IntervalScheduler? SchedulerOverride
+    {
+        get => s_schedulerOverride.Value;
+        set => s_schedulerOverride.Value = value;
+    }
 
     private void CreateAccumulator()
     {
@@ -79,10 +89,10 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
     protected override void ProcessCycle(IFunctionBlockCycleInfo cycleInfo)
     {
         // An elapsed interval is always completed, but not written to the outputs while the block is disabled.
-        var elapsedTimestamp = Interlocked.Exchange(ref _elapsedTimestamp, NoIntervalElapsed);
+        long elapsedTimestamp = Interlocked.Exchange(ref _elapsedTimestamp, NoIntervalElapsed);
         if (elapsedTimestamp != NoIntervalElapsed && _accumulator is not null)
         {
-            var result = _accumulator.Complete(elapsedTimestamp);
+            IntervalResult result = _accumulator.Complete(elapsedTimestamp);
             if (FunctionBlockEnabled)
                 SetResultToOutputs(result);
             ReportMissedIntervals();
@@ -111,7 +121,7 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
         if (Interlocked.Read(ref _missedIntervals) == 0)
             return;
 
-        var now = Scheduler.GetTimestamp();
+        long now = Scheduler.GetTimestamp();
         if (_lastMissedWarning != NoWarningYet && Scheduler.TimeProvider.GetElapsedTime(_lastMissedWarning, now) < s_missedWarningInterval)
             return;
 
@@ -124,7 +134,7 @@ public partial class IntervalStatistic : IIntervalElapsedHandler
         if (_dataReceived == false)
             return;
 
-        // Like the previous implementation, Last and the pass-through average take the current input value, which may
+        // Last and the pass-through average take the current input value, which may
         // differ from the last aggregated value (e.g. NaN, or a change while the block was disabled).
         if (_passThroughInputValueAsAverage)
         {
