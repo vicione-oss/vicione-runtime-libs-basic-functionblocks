@@ -4,7 +4,7 @@ using Xunit;
 
 public class IntervalStatisticTests
 {
-    private const int CompressionTime = 200;
+    private const int CompressionTime = 1000;
 
     public class ProcessCycle : RuntimeFunctionBlockTests<IntervalStatistic>
     {
@@ -51,11 +51,11 @@ public class IntervalStatisticTests
         public void PassesInputValueToAverageOutputOnFirstInterval()
         {
             Start(2.0);
-            _time.Advance(100);
+            _time.Advance(500);
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), 4.0);
             ProcessCycle();
 
-            CompleteInterval(100);
+            CompleteInterval(500);
 
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Average)).Should().Be(4.0);
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Last)).Should().Be(4.0);
@@ -69,11 +69,11 @@ public class IntervalStatisticTests
         {
             Start(2.0);
             CompleteInterval();
-            _time.Advance(50);
+            _time.Advance(250);
             ChangeInputValue(nameof(IntervalStatistic.ProcessDataInputs.Value), 6.0);
             ProcessCycle();
 
-            CompleteInterval(150);
+            CompleteInterval(750);
 
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Average)).Should().BeApproximately(5.0, 1e-9);
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Minimum)).Should().Be(2.0);
@@ -160,13 +160,13 @@ public class IntervalStatisticTests
         public void UsesNewCompressionTimeAfterSettingChanged()
         {
             Start(2.0);
-            ChangeSettingValue(nameof(IntervalStatistic.Settings.CompressionTime), 1000);
+            ChangeSettingValue(nameof(IntervalStatistic.Settings.CompressionTime), 5000);
             ProcessCycle();
 
             CompleteInterval();
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Last)).Should().Be(0);
 
-            CompleteInterval(800);
+            CompleteInterval(4000);
             Output(nameof(IntervalStatistic.ProcessDataOutputs.Last)).Should().Be(2.0);
         }
 

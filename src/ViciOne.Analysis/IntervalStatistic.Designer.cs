@@ -41,7 +41,7 @@ public partial class IntervalStatistic : RuntimeFunctionBlock<IntervalStatistic>
     {
         [SettingDesign("ac25b1ff-6683-401f-bb4d-6a7a0578742c", "03a77131-5e80-46c5-b3ba-ffdba9848398", "03a77131-5e80-46c5-b3ba-ffdba9848398")]
         [DefaultValue(10000)]
-        [RangeValidator<int>(1, int.MaxValue)]
+        [RangeValidator<int>(1000, int.MaxValue)]
         public IRuntimeSetting<int> CompressionTime { get; internal set; }
     }
 }
