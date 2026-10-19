@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <Compile Include="..\shared\RuntimeFunctionBlockTests{TBlock}.cs" Link="RuntimeFunctionBlockTests{TBlock}.cs" />
@@ -24,12 +24,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ViciOne.Analysis\ViciOne.Analysis.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="ViciOne.Data.Logger.File">
-      <HintPath>..\..\src\ViciOne.Analysis\lib\ViciOne.Data.Logger.File.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
 </Project>

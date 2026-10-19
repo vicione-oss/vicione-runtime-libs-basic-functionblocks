@@ -8,10 +8,4 @@
     <PackageReference Include="ViciOne.Engine.DefaultValidators" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="ViciOne.Data.Logger.File">
-      <HintPath>lib\ViciOne.Data.Logger.File.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
 </Project>

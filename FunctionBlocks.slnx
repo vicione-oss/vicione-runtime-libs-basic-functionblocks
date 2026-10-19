@@ -9,6 +9,9 @@
     <File Path="README.md" />
     <File Path="VERSION" />
   </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/ViciOne.Analysis.Benchmarks/ViciOne.Analysis.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/ViciOne.Analysis/ViciOne.Analysis.csproj" />
     <Project Path="src/ViciOne.Constant/ViciOne.Constant.csproj" />
