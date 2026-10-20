@@ -67,6 +67,13 @@
   - OS: win
     ARCH: [x64]
 
+variables:
+  DOTNET_IMAGE: registry.gitlab.com/vicione-oss/tooling/base-image:vicione-latest
+
+.activate_mise: &activate_mise
+  - mise install
+  - eval "$(mise env)"
+
 .update_nuget_source_ro: &update_nuget_source_ro
   - dotnet nuget update source JFrogNuGetProxy --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
   - dotnet nuget update source JFrogViciOne --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
@@ -88,18 +95,24 @@ include:
       project: "src/ViciOne.Analysis/ViciOne.Analysis.csproj"
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-restore@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
       rules: *rules_always
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-build@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
+      before_script:
+        - *activate_mise
       rules: *rules_always
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-test@1.1.0
     inputs:
-      image: mcr.microsoft.com/dotnet/sdk:10.0
+      image: ${DOTNET_IMAGE}
       rules: *rules_not_tags
       build_job_name: "dotnet Build"
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
         - dotnet restore
       coverage_report_pattern: "artifacts/tests/*/coverage.cobertura.xml"
@@ -117,12 +130,14 @@ include:
       min_core_version_property: "MinCoreVersion"
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
       name: "Analysis Publish"
       stage: pack
       rules: *rules_tags_else_manual
       project: "src/ViciOne.Analysis/ViciOne.Analysis.csproj"
       output_directory: "artifacts/Analysis/${OS}-${ARCH}"
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
         - dotnet restore
       execution_matrix: *exec_matrix
@@ -186,12 +201,14 @@ include:
       min_core_version_property: "MinCoreVersion"
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
       name: "Constant Publish"
       stage: pack
       rules: *rules_tags_else_manual
       project: "src/ViciOne.Constant/ViciOne.Constant.csproj"
       output_directory: "artifacts/Constant/${OS}-${ARCH}"
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
         - dotnet restore
       execution_matrix: *exec_matrix
@@ -255,12 +272,14 @@ include:
       min_core_version_property: "MinCoreVersion"
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
       name: "Converter Publish"
       stage: pack
       rules: *rules_tags_else_manual
       project: "src/ViciOne.Converter/ViciOne.Converter.csproj"
       output_directory: "artifacts/Converter/${OS}-${ARCH}"
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
         - dotnet restore
       execution_matrix: *exec_matrix
@@ -324,12 +343,14 @@ include:
       min_core_version_property: "MinCoreVersion"
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
       name: "FlowControl Publish"
       stage: pack
       rules: *rules_tags_else_manual
       project: "src/ViciOne.FlowControl/ViciOne.FlowControl.csproj"
       output_directory: "artifacts/FlowControl/${OS}-${ARCH}"
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
         - dotnet restore
       execution_matrix: *exec_matrix
@@ -393,12 +414,14 @@ include:
       min_core_version_property: "MinCoreVersion"
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
       name: "Logic Publish"
       stage: pack
       rules: *rules_tags_else_manual
       project: "src/ViciOne.Logic/ViciOne.Logic.csproj"
       output_directory: "artifacts/Logic/${OS}-${ARCH}"
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
         - dotnet restore
       execution_matrix: *exec_matrix
@@ -462,12 +485,14 @@ include:
       min_core_version_property: "MinCoreVersion"
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
       name: "Math Publish"
       stage: pack
       rules: *rules_tags_else_manual
       project: "src/ViciOne.Math/ViciOne.Math.csproj"
       output_directory: "artifacts/Math/${OS}-${ARCH}"
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
         - dotnet restore
       execution_matrix: *exec_matrix
@@ -531,12 +556,14 @@ include:
       min_core_version_property: "MinCoreVersion"
   - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
     inputs:
+      image: ${DOTNET_IMAGE}
       name: "Time Publish"
       stage: pack
       rules: *rules_tags_else_manual
       project: "src/ViciOne.Time/ViciOne.Time.csproj"
       output_directory: "artifacts/Time/${OS}-${ARCH}"
       before_script:
+        - *activate_mise
         - *update_nuget_source_ro
         - dotnet restore
       execution_matrix: *exec_matrix
