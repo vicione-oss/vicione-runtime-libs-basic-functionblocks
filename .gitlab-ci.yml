@@ -1,226 +1,615 @@
+.rule_tag: &rule_tag
+  if: "$CI_COMMIT_TAG"
+
+.rule_tag_manual: &rule_tag_manual
+  <<: *rule_tag
+  when: manual
+  allow_failure: true
+
+.rule_default_branch: &rule_default_branch
+  if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+
+.rule_default_branch_manual: &rule_default_branch_manual
+  <<: *rule_default_branch
+  when: manual
+  allow_failure: true
+
+.rule_mr: &rule_mr
+  if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+.rule_mr_manual: &rule_mr_manual
+  <<: *rule_mr
+  when: manual
+  allow_failure: true
+
+.rule_web: &rule_web
+  if: '$CI_PIPELINE_SOURCE == "web"'
+
+.rule_web_manual: &rule_web_manual
+  <<: *rule_web
+  when: manual
+  allow_failure: true
+
+.rules_always: &rules_always
+  - *rule_tag
+  - *rule_default_branch
+  - *rule_mr
+  - *rule_web
+
+.rules_manual: &rules_manual
+  - *rule_tag_manual
+  - *rule_default_branch_manual
+  - *rule_mr_manual
+  - *rule_web_manual
+
+.rules_not_tags: &rules_not_tags
+  - *rule_default_branch
+  - *rule_mr
+  - *rule_web
+
+.rules_only_tags_manual: &rules_only_tags_manual
+  - *rule_tag_manual
+
+.rules_not_tags_manual: &rules_not_tags_manual
+  - *rule_default_branch_manual
+  - *rule_mr_manual
+  - *rule_web_manual
+
+.rules_tags_else_manual: &rules_tags_else_manual
+  - *rule_tag
+  - *rule_default_branch_manual
+  - *rule_mr_manual
+  - *rule_web_manual
+
+.exec_matrix: &exec_matrix
+  - OS: linux
+    ARCH: [x64, arm64]
+  - OS: win
+    ARCH: [x64]
+
+variables:
+  DOTNET_IMAGE: registry.gitlab.com/vicione-oss/tooling/base-image:vicione-latest
+
+.activate_mise: &activate_mise
+  - mise install
+  - eval "$(mise env)"
+
+.update_nuget_source_ro: &update_nuget_source_ro
+  - dotnet nuget update source JFrogNuGetProxy --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
+  - dotnet nuget update source JFrogViciOne --configfile NuGet.Config -u $NuGet_User_JFrog -p $NuGet_PW_JFrog --store-password-in-clear-text
+
+stages:
+  - build
+  - test
+  - pack
+  - publish
+  - release
+
 include:
-  - project: 'vicione-oss/tooling/templates'
-    file: '/CI-Templates/v2/dotnet.yml'
-  - project: 'vicione-oss/tooling/ci-templates'
-    file: '/project/v1/dotnet.yml'
-
-default:
-  image: mcr.microsoft.com/dotnet/sdk:10.0
-
-Build:
-  extends: .dotnet-build
-
-xUnit:
-  extends: .dotnet-test-xunit
-
-Prerelease Analysis Raw:
-  extends: .dotnet-deploy-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Analysis/ViciOne.Analysis.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Analysis'
-    METADATA_FILE: 'src/ViciOne.Analysis/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Prerelease Constant Raw:
-  extends: .dotnet-deploy-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Constant/ViciOne.Constant.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Constant'
-    METADATA_FILE: 'src/ViciOne.Constant/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Prerelease Converter Raw:
-  extends: .dotnet-deploy-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Converter/ViciOne.Converter.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Converter'
-    METADATA_FILE: 'src/ViciOne.Converter/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Prerelease FlowControl Raw:
-  extends: .dotnet-deploy-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.FlowControl/ViciOne.FlowControl.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.FlowControl'
-    METADATA_FILE: 'src/ViciOne.FlowControl/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Prerelease Logic Raw:
-  extends: .dotnet-deploy-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Logic/ViciOne.Logic.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Logic'
-    METADATA_FILE: 'src/ViciOne.Logic/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Prerelease Math Raw:
-  extends: .dotnet-deploy-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Math/ViciOne.Math.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Math'
-    METADATA_FILE: 'src/ViciOne.Math/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Prerelease Time Raw:
-  extends: .dotnet-deploy-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-dev'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Time/ViciOne.Time.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Time'
-    METADATA_FILE: 'src/ViciOne.Time/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Release Analysis Raw:
-  extends: .dotnet-release-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Analysis/ViciOne.Analysis.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Analysis'
-    METADATA_FILE: 'src/ViciOne.Analysis/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-
-Release Constant Raw:
-  extends: .dotnet-release-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Constant/ViciOne.Constant.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Constant'
-    METADATA_FILE: 'src/ViciOne.Constant/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Release Converter Raw:
-  extends: .dotnet-release-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Converter/ViciOne.Converter.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Converter'
-    METADATA_FILE: 'src/ViciOne.Converter/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Release FlowControl Raw:
-  extends: .dotnet-release-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.FlowControl/ViciOne.FlowControl.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.FlowControl'
-    METADATA_FILE: 'src/ViciOne.FlowControl/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Release Logic Raw:
-  extends: .dotnet-release-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Logic/ViciOne.Logic.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Logic'
-    METADATA_FILE: 'src/ViciOne.Logic/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Release Math Raw:
-  extends: .dotnet-release-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Math/ViciOne.Math.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Math'
-    METADATA_FILE: 'src/ViciOne.Math/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-Release Time Raw:
-  extends: .dotnet-release-raw-rids
-  variables:
-    SERVER: 'https://ifm.jfrog.io/artifactory/vicione-suite-staging'
-    USER: ${Raw_User_RW_JFrog}
-    PASSWORD: ${Raw_PW_RW_JFrog}
-    PROJECT: 'src/ViciOne.Time/ViciOne.Time.csproj'
-    DST_DIRECTORY: 'fbs/ViciOne.Time'
-    METADATA_FILE: 'src/ViciOne.Time/metadata.json'
-    METADATA_VERSION_FILE: 'VERSION'
-    METADATA_MIN_VERSION_FILE: 'VERSION_CORE'
-    METADATA_MIN_VERSION_KEY: 'MinCoreVersion'
-  after_script:
-    - !reference [.push-metadata]
-
-### Public Release ###
-Public Release Raw:
-  extends: .dotnet-release-public
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/version/version-calc@v1.2.0
+    inputs:
+      rules: *rules_always
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/runtime-identifier@v0.2.0
+    inputs:
+      rules: *rules_always
+      project: "src/ViciOne.Analysis/ViciOne.Analysis.csproj"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-restore@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      rules: *rules_always
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-build@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      before_script:
+        - *activate_mise
+      rules: *rules_always
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-test@1.1.0
+    inputs:
+      image: ${DOTNET_IMAGE}
+      rules: *rules_not_tags
+      build_job_name: "dotnet Build"
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+        - dotnet restore
+      coverage_report_pattern: "artifacts/tests/*/coverage.cobertura.xml"
+  # ViciOne.Analysis
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "Analysis Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/ViciOne.Analysis/ViciOne.Analysis.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/ViciOne.Analysis/metadata.json"
+      metadata_dir: "metadata/Analysis"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      name: "Analysis Publish"
+      stage: pack
+      rules: *rules_tags_else_manual
+      project: "src/ViciOne.Analysis/ViciOne.Analysis.csproj"
+      output_directory: "artifacts/Analysis/${OS}-${ARCH}"
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "Analysis Pack"
+      stage: pack
+      rules: *rules_always
+      publish_job: "Analysis Publish"
+      metadata_job: "Analysis Metadata"
+      build_dir: "artifacts/Analysis"
+      metadata_dir: "metadata/Analysis"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Analysis Push (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.Analysis"
+      needs:
+        - "Analysis Metadata"
+        - "Analysis Pack"
+      artifacts:
+        - "artifacts/Analysis/**/*json"
+        - "artifacts/Analysis/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Analysis Push (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.Analysis"
+      needs:
+        - "Analysis Metadata"
+        - "Analysis Pack"
+      artifacts:
+        - "artifacts/Analysis/**/*json"
+        - "artifacts/Analysis/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.1.1
+    inputs:
+      name: "Analysis Release"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.Analysis"
+  # ViciOne.Constant
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "Constant Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/ViciOne.Constant/ViciOne.Constant.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/ViciOne.Constant/metadata.json"
+      metadata_dir: "metadata/Constant"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      name: "Constant Publish"
+      stage: pack
+      rules: *rules_tags_else_manual
+      project: "src/ViciOne.Constant/ViciOne.Constant.csproj"
+      output_directory: "artifacts/Constant/${OS}-${ARCH}"
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "Constant Pack"
+      stage: pack
+      rules: *rules_always
+      publish_job: "Constant Publish"
+      metadata_job: "Constant Metadata"
+      build_dir: "artifacts/Constant"
+      metadata_dir: "metadata/Constant"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Constant Push (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.Constant"
+      needs:
+        - "Constant Metadata"
+        - "Constant Pack"
+      artifacts:
+        - "artifacts/Constant/**/*json"
+        - "artifacts/Constant/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Constant Push (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.Constant"
+      needs:
+        - "Constant Metadata"
+        - "Constant Pack"
+      artifacts:
+        - "artifacts/Constant/**/*json"
+        - "artifacts/Constant/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.1.1
+    inputs:
+      name: "Constant Release"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.Constant"
+  # ViciOne.Converter
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "Converter Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/ViciOne.Converter/ViciOne.Converter.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/ViciOne.Converter/metadata.json"
+      metadata_dir: "metadata/Converter"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      name: "Converter Publish"
+      stage: pack
+      rules: *rules_tags_else_manual
+      project: "src/ViciOne.Converter/ViciOne.Converter.csproj"
+      output_directory: "artifacts/Converter/${OS}-${ARCH}"
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "Converter Pack"
+      stage: pack
+      rules: *rules_always
+      publish_job: "Converter Publish"
+      metadata_job: "Converter Metadata"
+      build_dir: "artifacts/Converter"
+      metadata_dir: "metadata/Converter"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Converter Push (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.Converter"
+      needs:
+        - "Converter Metadata"
+        - "Converter Pack"
+      artifacts:
+        - "artifacts/Converter/**/*json"
+        - "artifacts/Converter/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Converter Push (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.Converter"
+      needs:
+        - "Converter Metadata"
+        - "Converter Pack"
+      artifacts:
+        - "artifacts/Converter/**/*json"
+        - "artifacts/Converter/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.1.1
+    inputs:
+      name: "Converter Release"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.Converter"
+  # ViciOne.FlowControl
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "FlowControl Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/ViciOne.FlowControl/ViciOne.FlowControl.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/ViciOne.FlowControl/metadata.json"
+      metadata_dir: "metadata/FlowControl"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      name: "FlowControl Publish"
+      stage: pack
+      rules: *rules_tags_else_manual
+      project: "src/ViciOne.FlowControl/ViciOne.FlowControl.csproj"
+      output_directory: "artifacts/FlowControl/${OS}-${ARCH}"
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "FlowControl Pack"
+      stage: pack
+      rules: *rules_always
+      publish_job: "FlowControl Publish"
+      metadata_job: "FlowControl Metadata"
+      build_dir: "artifacts/FlowControl"
+      metadata_dir: "metadata/FlowControl"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "FlowControl Push (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.FlowControl"
+      needs:
+        - "FlowControl Metadata"
+        - "FlowControl Pack"
+      artifacts:
+        - "artifacts/FlowControl/**/*json"
+        - "artifacts/FlowControl/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "FlowControl Push (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.FlowControl"
+      needs:
+        - "FlowControl Metadata"
+        - "FlowControl Pack"
+      artifacts:
+        - "artifacts/FlowControl/**/*json"
+        - "artifacts/FlowControl/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.1.1
+    inputs:
+      name: "FlowControl Release"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.FlowControl"
+  # ViciOne.Logic
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "Logic Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/ViciOne.Logic/ViciOne.Logic.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/ViciOne.Logic/metadata.json"
+      metadata_dir: "metadata/Logic"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      name: "Logic Publish"
+      stage: pack
+      rules: *rules_tags_else_manual
+      project: "src/ViciOne.Logic/ViciOne.Logic.csproj"
+      output_directory: "artifacts/Logic/${OS}-${ARCH}"
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "Logic Pack"
+      stage: pack
+      rules: *rules_always
+      publish_job: "Logic Publish"
+      metadata_job: "Logic Metadata"
+      build_dir: "artifacts/Logic"
+      metadata_dir: "metadata/Logic"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Logic Push (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.Logic"
+      needs:
+        - "Logic Metadata"
+        - "Logic Pack"
+      artifacts:
+        - "artifacts/Logic/**/*json"
+        - "artifacts/Logic/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Logic Push (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.Logic"
+      needs:
+        - "Logic Metadata"
+        - "Logic Pack"
+      artifacts:
+        - "artifacts/Logic/**/*json"
+        - "artifacts/Logic/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.1.1
+    inputs:
+      name: "Logic Release"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.Logic"
+  # ViciOne.Math
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "Math Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/ViciOne.Math/ViciOne.Math.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/ViciOne.Math/metadata.json"
+      metadata_dir: "metadata/Math"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      name: "Math Publish"
+      stage: pack
+      rules: *rules_tags_else_manual
+      project: "src/ViciOne.Math/ViciOne.Math.csproj"
+      output_directory: "artifacts/Math/${OS}-${ARCH}"
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "Math Pack"
+      stage: pack
+      rules: *rules_always
+      publish_job: "Math Publish"
+      metadata_job: "Math Metadata"
+      build_dir: "artifacts/Math"
+      metadata_dir: "metadata/Math"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Math Push (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.Math"
+      needs:
+        - "Math Metadata"
+        - "Math Pack"
+      artifacts:
+        - "artifacts/Math/**/*json"
+        - "artifacts/Math/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Math Push (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.Math"
+      needs:
+        - "Math Metadata"
+        - "Math Pack"
+      artifacts:
+        - "artifacts/Math/**/*json"
+        - "artifacts/Math/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.1.1
+    inputs:
+      name: "Math Release"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.Math"
+  # ViciOne.Time
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/metadata@v0.2.0
+    inputs:
+      name: "Time Metadata"
+      stage: build
+      rules: *rules_always
+      project: "src/ViciOne.Time/ViciOne.Time.csproj"
+      module_version: "${Version}"
+      metadata_json: "src/ViciOne.Time/metadata.json"
+      metadata_dir: "metadata/Time"
+      min_core_version_file: "VERSION_CORE"
+      min_core_version_property: "MinCoreVersion"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/dotnet-component/dotnet-publish@v2.7.1
+    inputs:
+      image: ${DOTNET_IMAGE}
+      name: "Time Publish"
+      stage: pack
+      rules: *rules_tags_else_manual
+      project: "src/ViciOne.Time/ViciOne.Time.csproj"
+      output_directory: "artifacts/Time/${OS}-${ARCH}"
+      before_script:
+        - *activate_mise
+        - *update_nuget_source_ro
+        - dotnet restore
+      execution_matrix: *exec_matrix
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/module-packaging/package-module@v0.2.0
+    inputs:
+      name: "Time Pack"
+      stage: pack
+      rules: *rules_always
+      publish_job: "Time Publish"
+      metadata_job: "Time Metadata"
+      build_dir: "artifacts/Time"
+      metadata_dir: "metadata/Time"
+      before_script:
+        - apt update
+        - apt install jq zip -y
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Time Push (dev)"
+      stage: publish
+      rules: *rules_not_tags_manual
+      repository: "vicione-suite-dev"
+      upload_path: "fbs/ViciOne.Time"
+      needs:
+        - "Time Metadata"
+        - "Time Pack"
+      artifacts:
+        - "artifacts/Time/**/*json"
+        - "artifacts/Time/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/release@v2.1.1
+    inputs:
+      name: "Time Push (staging)"
+      stage: publish
+      rules: *rules_only_tags_manual
+      repository: "vicione-suite-staging"
+      upload_path: "fbs/ViciOne.Time"
+      needs:
+        - "Time Metadata"
+        - "Time Pack"
+      artifacts:
+        - "artifacts/Time/**/*json"
+        - "artifacts/Time/**/*zip"
+  - component: $CI_SERVER_FQDN/vicione-oss/tooling/components/jfrog/promote@v2.1.1
+    inputs:
+      name: "Time Release"
+      stage: release
+      rules: *rules_only_tags_manual
+      source_repository: "vicione-suite-staging"
+      destination_repository: "vicione-suite"
+      remote_path: "fbs/ViciOne.Time"
